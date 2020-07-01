@@ -1,11 +1,11 @@
 //CONSTRUCTORS
 
 // Macros
-#define KS_INPUTS uint l_kernel , uint n_kernels
+#define KS_INPUTS uint l_kernel , uint n_kernels , double Z
 
 #define AC_INPUTS  uint64_t l_data , double dt , double f_max_analogue , double f_min_analogue
 
-#define KS_INITS l_kernel(l_kernel) , n_kernels(n_kernels)
+#define KS_INITS l_kernel(l_kernel) , n_kernels(n_kernels), Z(Z)
 
 #define AC_INITS l_data(l_data) , dt(dt) , f_max_analogue(f_max_analogue) , f_min_analogue(f_min_analogue) ,\
 				 f_Nyquist(compute_f_Nyquist(dt)) , t_max_analogue(compute_t_max_analogue(f_min_analogue))
@@ -30,56 +30,98 @@
 #define KS_PQ_INITS \
 	ks_p_complex( Multi_array<complex_d,2>( n_kernels , l_kernel_half_c(l_kernel) , fftw_malloc , fftw_free ) ) , \
 	ks_q_complex( Multi_array<complex_d,2>( n_kernels , l_kernel_half_c(l_kernel) , fftw_malloc , fftw_free ) ) , \
-	ks_p( Multi_array<double,2>( (double*)ks_p_complex.get() , n_kernels , l_kernel , l_kernel_half_c(l_kernel)*sizeof(complex_d) , sizeof(double) ) ) , \
-	ks_q( Multi_array<double,2>( (double*)ks_q_complex.get() , n_kernels , l_kernel , l_kernel_half_c(l_kernel)*sizeof(complex_d) , sizeof(double) ) )  
+	ks_p( Multi_array<double,2>( (double*)ks_p_complex.get_ptr() , n_kernels , l_kernel , l_kernel_half_c(l_kernel)*sizeof(complex_d) , sizeof(double) ) ) , \
+	ks_q( Multi_array<double,2>( (double*)ks_q_complex.get_ptr() , n_kernels , l_kernel , l_kernel_half_c(l_kernel)*sizeof(complex_d) , sizeof(double) ) )  
 
 #define PQS_INITS \
 	ps( Multi_array<double,2>( n_kernels , l_full ) ) , \
-	qs( Multi_array<double,2>( n_kernels , l_full ) ) \
+	qs( Multi_array<double,2>( n_kernels , l_full ) )
+	
+#define HALF_NORMS \
+	half_norms_p( Multi_array<double,1>( n_kernels ) ),\
+	half_norms_q( Multi_array<double,1>( n_kernels ) )
+	
+#define	INIT_LIST_PART1 \
+	KS_INITS , AC_INITS , QUADS_INITS
+	
+#define	INIT_LIST_PART2 \
+	n_threads( n_threads ) , KS_PQ_INITS , HALF_NORMS , PQS_INITS
 
 /////////////////////////////////////////
 // Direct convolution constructors
 TimeQuad::TimeQuad(	KS_INPUTS , AC_INPUTS , double alpha , int n_threads )
-	: KS_INITS , AC_INITS , QUADS_INITS , FILTERS_WINDOWS_NULL_INITS , n_threads( n_threads ) , KS_PQ_INITS , PQS_INITS
-	{ init_direct(); };
+	: 	
+		INIT_LIST_PART1 , 
+		FILTERS_WINDOWS_NULL_INITS , 
+		INIT_LIST_PART2
+	{ 
+		init_direct(); 
+	};
 
 TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , Multi_array<complex_d,2> filters , Multi_array<double,2> windows , int n_threads)
-	: KS_INITS , AC_INITS , QUADS_INITS , FILTERS_WINDOWS_INITS , n_threads( n_threads ) , KS_PQ_INITS , PQS_INITS
-	{ init_direct(); };
+	: 
+		INIT_LIST_PART1 , 
+		FILTERS_WINDOWS_INITS , 
+		INIT_LIST_PART2
+	{ 
+		init_direct(); 
+	};
 
 TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , double alpha , int n_threads )
-	: KS_INITS , AC_INITS , QUADS_INITS , FILTERS_NUMPY_INITS , n_threads( n_threads ) , KS_PQ_INITS , PQS_INITS
-	{ init_direct(); };
+	: 
+		INIT_LIST_PART1 , 
+		FILTERS_NUMPY_INITS , 
+		INIT_LIST_PART2
+	{ 
+		init_direct(); 
+	};
 
 TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , np_double windows , int n_threads )
-	: KS_INITS , AC_INITS , QUADS_INITS , FILTERS_WINDOWS_NUMPY_INITS , n_threads( n_threads ) , KS_PQ_INITS , PQS_INITS
-	{ init_direct(); };
+	: 
+		INIT_LIST_PART1 , 
+		FILTERS_WINDOWS_NUMPY_INITS , 
+		INIT_LIST_PART2
+	{ 
+		init_direct(); 
+	};
 	
 /////////////////////////////////////////
 // FFT convolutionc constructors
 TimeQuad::TimeQuad(	KS_INPUTS , AC_INPUTS , double alpha , uint l_fft , int n_threads )
-	: KS_INITS , AC_INITS , QUADS_INITS , FILTERS_WINDOWS_NULL_INITS , n_threads( n_threads ) , KS_PQ_INITS , PQS_INITS
+	: 	
+		INIT_LIST_PART1 , 
+		FILTERS_WINDOWS_NULL_INITS , 
+		INIT_LIST_PART2
 	{ 
-	
-	init_fft(l_fft); };
+		init_fft(l_fft); 
+	};
 
 TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , Multi_array<complex_d,2> filters , Multi_array<double,2> windows , uint l_fft , int n_threads)
-	: KS_INITS , AC_INITS , QUADS_INITS , FILTERS_WINDOWS_INITS , n_threads( n_threads ) , KS_PQ_INITS , PQS_INITS
-	{
-	
-	init_fft(l_fft); };
+	: 	
+		INIT_LIST_PART1 , 
+		FILTERS_WINDOWS_INITS , 
+		INIT_LIST_PART2
+	{ 
+		init_fft(l_fft); 
+	};
 
 TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , double alpha , uint l_fft , int n_threads )
-	: KS_INITS , AC_INITS , QUADS_INITS , FILTERS_NUMPY_INITS , n_threads( n_threads ) , KS_PQ_INITS , PQS_INITS
+	: 
+		INIT_LIST_PART1 , 
+		FILTERS_NUMPY_INITS , 
+		INIT_LIST_PART2
 	{  
-	
-	init_fft(l_fft); };
+		init_fft(l_fft); 
+	};
 	
 TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , np_double windows , uint l_fft , int n_threads )
-	: KS_INITS , AC_INITS , QUADS_INITS , FILTERS_WINDOWS_NUMPY_INITS , n_threads( n_threads ) , KS_PQ_INITS , PQS_INITS
+	: 
+		INIT_LIST_PART1 , 
+		FILTERS_WINDOWS_NUMPY_INITS , 
+		INIT_LIST_PART2
 	{ 
-	
-	init_fft(l_fft); };
+		init_fft(l_fft); 
+	};
 
 // DESTRUCTOR
 TimeQuad::~TimeQuad()
@@ -129,21 +171,21 @@ void TimeQuad::checks_n_threads()
 void TimeQuad::checks_filters()
 {
     /*No filter -> only one kernel*/
-	if ( ( filters.get() == NULL ) and ( n_kernels != 1 ))
+	if ( ( filters.get_ptr() == NULL ) and ( n_kernels != 1 ))
 	{
 		throw std::runtime_error(" If no filter is given there can be only one set of kernels.");
 	}
     /*filter and n_kernels ==1   -> only one filters*/
-	else if ( ( filters.get() != NULL ) and ( n_kernels == 1 ) and ( filters.get_n_j() != n_kernels ) )
+	else if ( ( filters.get_ptr() != NULL ) and ( n_kernels == 1 ) and ( filters.get_n_j() != n_kernels ) )
 	{
 		throw std::runtime_error(" If a list of filters is given and n_kernels = 1 then n_filters must be equal to 1.");
 	}
     /*filter and n_kernels >1   -> same number of filters or one less*/
-	else if ( ( filters.get() != NULL ) and ( n_kernels > 1 ) and ( filters.get_n_j() != n_kernels ) and ( filters.get_n_j() != n_kernels - 1 )  )
+	else if ( ( filters.get_ptr() != NULL ) and ( n_kernels > 1 ) and ( filters.get_n_j() != n_kernels ) and ( filters.get_n_j() != n_kernels - 1 )  )
 	{
 		throw std::runtime_error(" If a list of filters and n_kernels > 1 then n_filters must be equal to n_kernels or n_kernels - 1.");
 	}
-	if( (filters.get() != NULL) and (filters.get_n_i() != l_kernel_half_c(l_kernel)) )
+	if( (filters.get_ptr() != NULL) and (filters.get_n_i() != l_kernel_half_c(l_kernel)) )
 	{
 		throw std::runtime_error(" length of filters not mathching with length of kernels ");
 	}
@@ -151,15 +193,15 @@ void TimeQuad::checks_filters()
 
 void TimeQuad::checks_windows()
 {
-	if ( ( filters.get() == NULL ) and ( windows.get() == NULL ) and not( n_kernels == 1 ))
+	if ( ( filters.get_ptr() == NULL ) and ( windows.get_ptr() == NULL ) and not( n_kernels == 1 ))
 	{
 		throw std::runtime_error(" If no window is given there can be only one set of kernels.");
 	}
-	else if( ( windows.get() != NULL ) and (windows.get_n_j() != n_kernels) )
+	else if( ( windows.get_ptr() != NULL ) and (windows.get_n_j() != n_kernels) )
 	{
 		throw std::runtime_error("number of windows != n_kernels");
 	}
-	else if( (windows.get() != NULL) and (windows.get_n_i() != l_kernel) )
+	else if( (windows.get_ptr() != NULL) and (windows.get_n_i() != l_kernel) )
 	{
 		throw std::runtime_error(" length of windows not mathching with length of kernels ");
 	}
@@ -194,9 +236,9 @@ void TimeQuad::init_gen()
 	checks();
 	checks_n_threads();
 	omp_set_num_threads(n_threads);
-	checks_filters();
 	checks_windows();
-	
+	checks_filters();
+		
 	prepare_plans_kernels();
 	make_kernels();
 }
@@ -229,14 +271,15 @@ void TimeQuad::make_kernels()
 	vanilla_kernels();
 	normalize_for_ffts();
 	copy_vanillas();
+	apply_windows();
 	apply_filters();
-	apply_windows();	
 }
 
 void TimeQuad::vanilla_kernels()
 {
 	double t ; 	/* Abscisse positif */
 	double prefact ;
+	prefactor = compute_prefactor(Z);
 	double argument ;
 	double tmp1; 
 	double tmp2;
@@ -245,7 +288,7 @@ void TimeQuad::vanilla_kernels()
 	for (uint i = 0 ; i < l_kernel/2; i++ ) // l_kernel doit être impaire
 	{
 		t = ( i + 1 )*dt;
-		prefact = 2.0/sqrt(t);
+		prefact = prefactor*2.0/sqrt(t);
 		argument = sqrt( 2.0*t/dt );
 		/* Right part */
 		tmp1 = prefact * Fresnel_Cosine_Integral( argument ) ;
@@ -295,11 +338,11 @@ void TimeQuad::apply_filters()
 	/* Foward transforms */
 	for ( uint i = 0 ; i<n_kernels ; i++ )
 	{
-		fftw_execute_dft_r2c( k_foward, ks_p[i] , reinterpret_cast<fftw_complex*>(ks_p[i]) ); 
-		fftw_execute_dft_r2c( k_foward, ks_q[i] , reinterpret_cast<fftw_complex*>(ks_q[i]) ); 
+		fftw_execute_dft_r2c( k_foward, ks_p[i] , reinterpret_cast<fftw_complex*>( ks_p[i]) ); 
+		fftw_execute_dft_r2c( k_foward, ks_q[i] , reinterpret_cast<fftw_complex*>( ks_q[i]) ); 
 	}
 	
-	if (filters.get() == NULL) /* No filter given ==> Only one kernel */
+	if (filters.get_ptr() == NULL) /* No filter given ==> Only one kernel */
 	{	
 		/* Default filter */
 		for ( uint i = 0 ; i<l_f  ; i++ ){ f[i] = fft_freq( i , l_kernel , dt ); } ;
@@ -315,7 +358,7 @@ void TimeQuad::apply_filters()
 			ks_q_complex(0,j) *= filters(0,j) ;
 		}
 	}
-	else if ( filters.get_n_j() == n_kernels - 1 ) /*  There one filter less than n_kernels */
+	else if ( filters.get_n_j() == n_kernels - 1 ) /*  There is one filter less than n_kernels */
 	{
 		/* Default filter */
 		for ( uint i = 0 ; i<l_f  ; i++ ){f[i] = fft_freq( i , l_kernel , dt );} ;
@@ -356,7 +399,7 @@ void TimeQuad::apply_filters()
 
 void TimeQuad::apply_windows()
 {
-	if (windows.get() != NULL)
+	if (windows.get_ptr() != NULL)
 	{
 		/* Apply custom windows */
 		for ( uint i = 0 ; i<n_kernels ; i++ ) 
@@ -377,6 +420,41 @@ void TimeQuad::apply_windows()
 			Tukey_Window( ks_q[i] , alpha , l_kernel ) ;
 		}
 	}		
+}
+
+void TimeQuad::half_normalization()
+{	
+	for ( uint j = 0 ; j<n_kernels ; j++ ) 
+	{
+		double tmp_p = 0;
+		double tmp_q = 0;
+		for ( uint i = 0 ; i<l_kernel ; i++ )
+		{
+			tmp_p += ks_p(j,i)*ks_p(j,i);
+			tmp_q += ks_q(j,i)*ks_q(j,i);
+		}
+		
+		half_norms_p[j] = sqrt(tmp_p);
+		half_norms_q[j] = sqrt(tmp_q);
+		
+		for ( uint i = 0 ; i<l_kernel ; i++ )
+		{
+			ks_p(j,i) /= half_norms_p[j];
+			ks_q(j,i) /= half_norms_q[j];
+		}
+	}
+}
+
+void TimeQuad::half_denormalization()
+{	
+	for ( uint j = 0 ; j<n_kernels ; j++ ) 
+	{
+		for ( uint i = 0 ; i<l_kernel ; i++ )
+		{
+			ks_p(j,i) *= half_norms_p[j];
+			ks_q(j,i) *= half_norms_q[j];
+		}
+	}
 }
 
 template<class DataType>
@@ -451,4 +529,7 @@ np_double TimeQuad::get_qs()
 #undef FILTERS_WINDOWS_NUMPY_INITS 
 #undef FILTERS_WINDOWS_INITS 
 #undef KS_PQ_INITS 
-#undef PQS_INITS 
+#undef HALF_NORMS 
+#undef PQS_INITS
+#undef INIT_LIST_PART1
+#undef INIT_LIST_PART2

@@ -1,4 +1,4 @@
-#include "../includes/TimeQuad.h"
+#include <TimeQuad.h>
 #include "TimeQuad.tpp"
 
 // Explicit template instanciation

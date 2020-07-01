@@ -1,3 +1,3 @@
 #pragma once
 
-#include "../includes/TimeQuad_py.h"
+#include <TimeQuad_py.h>

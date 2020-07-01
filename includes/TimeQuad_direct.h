@@ -1,9 +1,8 @@
 #pragma once
 
-#include "../../includes/header_common.h"
-#include "../../SM-Omp_extra/includes/omp_extra.h"
+#include <omp_extra.h>
 
-#include "TimeQuad_algorithm.h"
+#include <TimeQuad_algorithm.h>
 
 class TimeQuad_direct : public TimeQuad_algorithm
 {

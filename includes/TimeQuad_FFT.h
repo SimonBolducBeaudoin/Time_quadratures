@@ -1,11 +1,15 @@
 #pragma once
 
-#include "../../includes/header_common.h"
-#include "../../SM-Special_functions/special_functions.h"
-#include "../../SM-Windowing/includes/Windowing.h"
-#include "../../SM-Omp_extra/includes/omp_extra.h"
+#include <omp_extra.h>
+#include <special_functions.h>
+#include <Windowing.h>
+#include <TimeQuad_algorithm.h>
 
-#include "TimeQuad_algorithm.h"
+#include <fftw3.h>
+
+typedef unsigned int uint;
+typedef py::array_t<double,py::array::c_style> np_double;
+typedef py::array_t<complex_d,py::array::c_style> np_complex_d;
 
 class TimeQuad_FFT: public TimeQuad_algorithm
 {

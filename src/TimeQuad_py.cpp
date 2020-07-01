@@ -1,4 +1,4 @@
-#include "../includes/TimeQuad_py.h"
+#include <TimeQuad_py.h>
 
 // CLASS MACROS
 #define PY_TIME_QUAD(DataType)\
@@ -6,8 +6,9 @@
 	/*Default constructor*/\
 	.def\
 	(\
-		py::init<uint,uint,uint64_t,double,double,double,double,uint,int>(), \
+		py::init<uint,uint,double,uint64_t,double,double,double,double,uint,int>(), \
 		"l_kernel"_a.noconvert() = 257 , "n_kernels"_a.noconvert() = 1, \
+		"Z"_a.noconvert() = 40.35143201333281, \
 		"l_data"_a.noconvert() = (1<<16) , "dt"_a.noconvert() = 0.03125 ,\
 		"f_max_analogue"_a.noconvert() = 10.0 , "f_min_analogue"_a.noconvert() = 0.5 ,\
 		"alpha"_a.noconvert() = 0.5 ,\
@@ -18,12 +19,13 @@
 	(\
 		py::init\
 		<\
-			uint,uint,uint64_t,double,double,double, \
+			uint,uint,double,uint64_t,double,double,double, \
 			py::array_t<complex_d,py::array::c_style>, \
 			double,\
 			uint,int\
 		>(), \
 		"l_kernel"_a.noconvert() = 257 , "n_kernels"_a.noconvert() = 1, \
+		"Z"_a.noconvert() = 40.35143201333281, \
 		"l_data"_a.noconvert() = (1<<16) , "dt"_a.noconvert() = 0.03125 ,\
 		"f_max_analogue"_a.noconvert() = 10.0 , "f_min_analogue"_a.noconvert() = 0.5 ,\
 		"filters"_a.noconvert() , "alpha"_a.noconvert() = 0.5 ,\
@@ -34,12 +36,13 @@
 	(\
 		py::init\
 		<\
-			uint,uint,uint64_t,double,double,double, \
+			uint,uint,double,uint64_t,double,double,double, \
 			py::array_t<complex_d,py::array::c_style>, \
 			py::array_t<double,py::array::c_style>,\
 			uint,int\
 		>(), \
 		"l_kernel"_a.noconvert() = 257 , "n_kernels"_a.noconvert() = 1, \
+		"Z"_a.noconvert() = 40.35143201333281, \
 		"l_data"_a.noconvert() = (1<<16) , "dt"_a.noconvert() = 0.03125 ,\
 		"f_max_analogue"_a.noconvert() = 10.0 , "f_min_analogue"_a.noconvert() = 0.5 ,\
 		"filters"_a.noconvert() , "windows"_a.noconvert() , \
@@ -49,6 +52,9 @@
 	.def("ks_q", &TimeQuad::get_ks_q)\
 	.def("ps", &TimeQuad::get_ps )\
 	.def("qs", &TimeQuad::get_qs )\
+	.def("half_norms_p", &TimeQuad::get_half_norms_p )\
+	.def("half_norms_p", &TimeQuad::get_half_norms_p )\
+	.def("half_denormalization", &TimeQuad::half_denormalization)\
 	.def("execute" , &TimeQuad::execute_py<DataType> )\
 	\
 	;

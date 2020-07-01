@@ -1,11 +1,11 @@
 #pragma once
 
-#include "../../includes/header_common.h"
-#include "../../SM-Special_functions/special_functions.h"
-#include "../../SM-Windowing/includes/Windowing.h"
-#include "../../SM-Omp_extra/includes/omp_extra.h"
+// #include "../../includes/header_common.h"
+#include <omp_extra.h>
+#include <special_functions.h>
+#include <Windowing.h>
 
-#include "../../SM-Multi_array/Multi_array.h"
+#include <Multi_array.h>
 
 #include "TimeQuad_algorithm.h"
 #include "TimeQuad_FFT.h"
@@ -31,43 +31,43 @@ class TimeQuad
 		/* Direct convolution */
 		TimeQuad
 		( 
-			uint l_kernel , uint n_kernels , uint64_t l_data , double dt , double f_max_analogue , 
+			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , 
 			double f_min_analogue , double alpha = 0.5 , int n_threads = 36 
 		);  /*Windows and filter set to NULL*/
 		TimeQuad
 		( 
-			uint l_kernel , uint n_kernels , uint64_t l_data , double dt , double f_max_analogue , 
+			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , 
 			double f_min_analogue , Multi_array<complex_d,2> filters , Multi_array<double,2> windows , int n_threads = 36 
 		);
 		TimeQuad 
 		( 
-			uint l_kernel , uint n_kernels , uint64_t l_data , double dt , 	double f_max_analogue , 
+			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , 	double f_max_analogue , 
 			double f_min_analogue , np_complex_d filters , double alpha , int n_threads 
 		); /*Filter given by numpy array*/
 		TimeQuad 
 		( 
-			uint l_kernel , uint n_kernels , uint64_t l_data , double dt , 	double f_max_analogue , 
+			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , 	double f_max_analogue , 
 			double f_min_analogue , np_complex_d filters , 	np_double windows , int n_threads 
 		); /*Windows and filter given by numpy array*/
 		/* FFT convolution */
 		TimeQuad
 		( 
-			uint l_kernel , uint n_kernels , uint64_t l_data , double dt , double f_max_analogue , 
+			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , 
 			double f_min_analogue , double alpha , uint l_fft , int n_threads = 36 
 		);
 		TimeQuad
 		( 
-			uint l_kernel , uint n_kernels , uint64_t l_data , double dt , double f_max_analogue , double f_min_analogue , 
+			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , double f_min_analogue , 
 			Multi_array<complex_d,2> filters , Multi_array<double,2> windows , uint l_fft , int n_threads = 36 
 		);
 		TimeQuad 
 		( 
-			uint l_kernel , uint n_kernels , uint64_t l_data , double dt , 	double f_max_analogue , 
+			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , 	double f_max_analogue , 
 			double f_min_analogue , np_complex_d filters , double alpha , uint l_fft , int n_threads 
 		); /*Filter given by numpy array*/
 		TimeQuad 
 		( 
-			uint l_kernel , uint n_kernels , uint64_t l_data , double dt , 	double f_max_analogue , 
+			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , 	double f_max_analogue , 
 			double f_min_analogue , np_complex_d filters , 	np_double windows , uint l_fft , int n_threads 
 		); /*Windows and filter given by numpy array*/
 			
@@ -75,8 +75,11 @@ class TimeQuad
 		~TimeQuad();
 		
 		// Python getters
-		np_double get_ks_p(){ return ks_p.get_py_no_copy() ;};
-		np_double get_ks_q(){ return ks_q.get_py_no_copy() ;};
+		np_double get_ks_p(){ return ks_p.share_py() ;};
+		np_double get_ks_q(){ return ks_q.share_py() ;};
+		
+		np_double get_half_norms_p(){ return half_norms_p.share_py() ;};
+		np_double get_half_norms_q(){ return half_norms_q.share_py() ;};
 			// Returns only the valid part of the convolution
 		np_double get_ps();
 		np_double get_qs();
@@ -90,6 +93,8 @@ class TimeQuad
 		inline uint64_t compute_l_full( uint l_kernel, uint64_t l_data ){ return l_kernel + l_data - 1 ; } ;
 		
 		//// C++ INTERFACE
+		void half_denormalization(); // Undoes half-normalize kernels
+		
 		template<class DataType>
 		void execute( DataType* data , uint64_t l_data );
 		
@@ -101,10 +106,14 @@ class TimeQuad
 		// Kernels info
 		uint l_kernel ;
 		uint n_kernels ;
+		double Z ; // 40.35143201333281 [Ohm]
 		
 		// Acquisition info
 		uint64_t l_data ; //
 		double dt ; // 0.03125 [ns] 
+		const double h = 6.62607004*pow(10.0,-25.0) ; // Plank's constant 6,62607004 × 10-25 m2 kg / ns
+		double prefactor ; // sqrt( 2/ Zh )
+		double compute_prefactor( double Z){ return sqrt( 2/ (Z*h) );} ;
 		double f_max_analogue  ; // 10 [GHz] 
 		double f_min_analogue  ; // 0.5 [GHz] 
 		double f_Nyquist ; //16 [GHz] = 1/(2*dt)
@@ -124,6 +133,9 @@ class TimeQuad
 		Multi_array<complex_d,2> ks_q_complex ;
 		Multi_array<double,2> ks_p ; // Uses memory managed by ks_p_complex
 		Multi_array<double,2> ks_q ;
+		Multi_array<double,1> half_norms_p ; 
+		Multi_array<double,1> half_norms_q ;
+		
 		// Quadratures
 		Multi_array<double,2> ps ; 
 		Multi_array<double,2> qs ;
@@ -149,11 +161,12 @@ class TimeQuad
 			// void make_quadratures();
 		
 		// make_kernels sequence
-			void vanilla_kernels(); // Generates vanilla (analitical filter at Nyquist's frequency) k_p and k_q and outputs then in ks_p[0] and ks_q[0] 
+			void vanilla_kernels(); // Generates vanilla (analitical filter at Nyquist's frequency) k_p and k_q and outputs then in ks_p[0] and ks_q[0]
 			void normalize_for_ffts();
 			void copy_vanillas(); /* Copying vanilla Kernels to all other ks_p[i] and ks_q[i]*/
 			void apply_filters(); // Apply the list of n_kernels custom filters to all ks_p and ks_q
 			void apply_windows(); // Apply the list of n_kernels windows or the same window to every one.
+			void half_normalization(); // Calculates and half-normalize kernels
 			
 		// Destructor sequence
 			void destroy_plans_kernels();
