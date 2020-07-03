@@ -34,8 +34,8 @@
 	ks_q( Multi_array<double,2>( (double*)ks_q_complex.get_ptr() , n_kernels , l_kernel , l_kernel_half_c(l_kernel)*sizeof(complex_d) , sizeof(double) ) )  
 
 #define PQS_INITS \
-	ps( Multi_array<double,2>( n_kernels , l_full ) ) , \
-	qs( Multi_array<double,2>( n_kernels , l_full ) )
+	ps( Multi_array<double,2,Quads_Index_Type>( n_kernels , l_full ) ) , \
+	qs( Multi_array<double,2,Quads_Index_Type>( n_kernels , l_full ) )
 	
 #define HALF_NORMS \
 	half_norms_p( Multi_array<double,1>( n_kernels ) ),\
@@ -49,7 +49,8 @@
 
 /////////////////////////////////////////
 // Direct convolution constructors
-TimeQuad::TimeQuad(	KS_INPUTS , AC_INPUTS , double alpha , int n_threads )
+template<class Quads_Index_Type>
+TimeQuad<Quads_Index_Type>::TimeQuad(	KS_INPUTS , AC_INPUTS , double alpha , int n_threads )
 	: 	
 		INIT_LIST_PART1 , 
 		FILTERS_WINDOWS_NULL_INITS , 
@@ -58,7 +59,8 @@ TimeQuad::TimeQuad(	KS_INPUTS , AC_INPUTS , double alpha , int n_threads )
 		init_direct(); 
 	};
 
-TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , Multi_array<complex_d,2> filters , Multi_array<double,2> windows , int n_threads)
+template<class Quads_Index_Type>
+TimeQuad<Quads_Index_Type>::TimeQuad( KS_INPUTS , AC_INPUTS , Multi_array<complex_d,2> filters , Multi_array<double,2> windows , int n_threads)
 	: 
 		INIT_LIST_PART1 , 
 		FILTERS_WINDOWS_INITS , 
@@ -67,7 +69,8 @@ TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , Multi_array<complex_d,2> filters , M
 		init_direct(); 
 	};
 
-TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , double alpha , int n_threads )
+template<class Quads_Index_Type>
+TimeQuad<Quads_Index_Type>::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , double alpha , int n_threads )
 	: 
 		INIT_LIST_PART1 , 
 		FILTERS_NUMPY_INITS , 
@@ -76,7 +79,8 @@ TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , double alpha 
 		init_direct(); 
 	};
 
-TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , np_double windows , int n_threads )
+template<class Quads_Index_Type>
+TimeQuad<Quads_Index_Type>::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , np_double windows , int n_threads )
 	: 
 		INIT_LIST_PART1 , 
 		FILTERS_WINDOWS_NUMPY_INITS , 
@@ -87,7 +91,8 @@ TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , np_double win
 	
 /////////////////////////////////////////
 // FFT convolutionc constructors
-TimeQuad::TimeQuad(	KS_INPUTS , AC_INPUTS , double alpha , uint l_fft , int n_threads )
+template<class Quads_Index_Type>
+TimeQuad<Quads_Index_Type>::TimeQuad(	KS_INPUTS , AC_INPUTS , double alpha , uint l_fft , int n_threads )
 	: 	
 		INIT_LIST_PART1 , 
 		FILTERS_WINDOWS_NULL_INITS , 
@@ -96,7 +101,8 @@ TimeQuad::TimeQuad(	KS_INPUTS , AC_INPUTS , double alpha , uint l_fft , int n_th
 		init_fft(l_fft); 
 	};
 
-TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , Multi_array<complex_d,2> filters , Multi_array<double,2> windows , uint l_fft , int n_threads)
+template<class Quads_Index_Type>
+TimeQuad<Quads_Index_Type>::TimeQuad( KS_INPUTS , AC_INPUTS , Multi_array<complex_d,2> filters , Multi_array<double,2> windows , uint l_fft , int n_threads)
 	: 	
 		INIT_LIST_PART1 , 
 		FILTERS_WINDOWS_INITS , 
@@ -105,7 +111,8 @@ TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , Multi_array<complex_d,2> filters , M
 		init_fft(l_fft); 
 	};
 
-TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , double alpha , uint l_fft , int n_threads )
+template<class Quads_Index_Type>
+TimeQuad<Quads_Index_Type>::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , double alpha , uint l_fft , int n_threads )
 	: 
 		INIT_LIST_PART1 , 
 		FILTERS_NUMPY_INITS , 
@@ -113,8 +120,9 @@ TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , double alpha 
 	{  
 		init_fft(l_fft); 
 	};
-	
-TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , np_double windows , uint l_fft , int n_threads )
+
+template<class Quads_Index_Type>	
+TimeQuad<Quads_Index_Type>::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , np_double windows , uint l_fft , int n_threads )
 	: 
 		INIT_LIST_PART1 , 
 		FILTERS_WINDOWS_NUMPY_INITS , 
@@ -124,7 +132,8 @@ TimeQuad::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , np_double win
 	};
 
 // DESTRUCTOR
-TimeQuad::~TimeQuad()
+template<class Quads_Index_Type>
+TimeQuad<Quads_Index_Type>::~TimeQuad()
 {	
 	destroy_plans_kernels();
 	/* 
@@ -135,7 +144,8 @@ TimeQuad::~TimeQuad()
 }
 
 // CHECKS 
-void TimeQuad::checks()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::checks()
 {
 	if (l_kernel %2 != 1)
 	{
@@ -155,7 +165,8 @@ void TimeQuad::checks()
 
 }
 
-void TimeQuad::checks_n_threads()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::checks_n_threads()
 {	
 	if ( n_threads <= 0 )
 	{
@@ -168,7 +179,8 @@ void TimeQuad::checks_n_threads()
 	}
 }
 
-void TimeQuad::checks_filters()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::checks_filters()
 {
     /*No filter -> only one kernel*/
 	if ( ( filters.get_ptr() == NULL ) and ( n_kernels != 1 ))
@@ -191,7 +203,8 @@ void TimeQuad::checks_filters()
 	}
 }
 
-void TimeQuad::checks_windows()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::checks_windows()
 {
 	if ( ( filters.get_ptr() == NULL ) and ( windows.get_ptr() == NULL ) and not( n_kernels == 1 ))
 	{
@@ -207,7 +220,8 @@ void TimeQuad::checks_windows()
 	}
 }
 
-void TimeQuad::execution_checks( uint64_t l_data )
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::execution_checks( uint64_t l_data )
 {
 	if ( this->l_data != l_data )
 	{
@@ -216,7 +230,8 @@ void TimeQuad::execution_checks( uint64_t l_data )
 }
 
 // PREPARE_PLANS METHOD
-void TimeQuad::prepare_plans_kernels()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::prepare_plans_kernels()
 {   
 	fftw_import_wisdom_from_filename("FFTW_Wisdom.dat");
 	k_foward = fftw_plan_dft_r2c_1d( l_kernel , ks_p[0] , reinterpret_cast<fftw_complex*>(ks_p[0]) , FFTW_EXHAUSTIVE); // FFTW_ESTIMATE
@@ -225,13 +240,15 @@ void TimeQuad::prepare_plans_kernels()
 }
 
 // FRREE METHODS
-void TimeQuad::destroy_plans_kernels()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::destroy_plans_kernels()
 {
 	fftw_destroy_plan(k_foward); 
     fftw_destroy_plan(k_backward); 	
 }
 
-void TimeQuad::init_gen()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::init_gen()
 {
 	checks();
 	checks_n_threads();
@@ -243,39 +260,44 @@ void TimeQuad::init_gen()
 	make_kernels();
 }
 
-void TimeQuad::init_direct()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::init_direct()
 {
 	init_gen();
 	/*
 	Memory allocation for algorithm object
 	*/
 	
-	TimeQuad_direct* tmp = new TimeQuad_direct( ks_p , ks_q , ps , qs , l_kernel , n_kernels , l_data , n_threads  );
+	TimeQuad_direct<Quads_Index_Type>* tmp = new TimeQuad_direct<Quads_Index_Type>( ks_p , ks_q , ps , qs , l_kernel , n_kernels , l_data , n_threads  );
 	algorithm =  tmp ;
 }
 
-void TimeQuad::init_fft( uint l_fft )
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::init_fft( uint l_fft )
 {
 	init_gen();
 	/*
 	Memory allocation for algorithm object
 	*/
 	
-	TimeQuad_FFT* tmp = new TimeQuad_FFT( ks_p , ks_q , ps , qs , l_kernel , n_kernels , l_data , l_fft , n_threads );
+	TimeQuad_FFT<Quads_Index_Type>* tmp = new TimeQuad_FFT<Quads_Index_Type>( ks_p , ks_q , ps , qs , l_kernel , n_kernels , l_data , l_fft , n_threads );
 	algorithm =  tmp ;
 	
 }
 
-void TimeQuad::make_kernels()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::make_kernels()
 {
 	vanilla_kernels();
 	normalize_for_ffts();
 	copy_vanillas();
 	apply_windows();
 	apply_filters();
+    half_normalization();
 }
 
-void TimeQuad::vanilla_kernels()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::vanilla_kernels()
 {
 	double t ; 	/* Abscisse positif */
 	double prefact ;
@@ -283,12 +305,11 @@ void TimeQuad::vanilla_kernels()
 	double argument ;
 	double tmp1; 
 	double tmp2;
-	/*Could be parallelized*/
 	
 	for (uint i = 0 ; i < l_kernel/2; i++ ) // l_kernel doit être impaire
 	{
 		t = ( i + 1 )*dt;
-		prefact = prefactor*2.0/sqrt(t);
+		prefact = 1.0*2.0/sqrt(t);
 		argument = sqrt( 2.0*t/dt );
 		/* Right part */
 		tmp1 = prefact * Fresnel_Cosine_Integral( argument ) ;
@@ -303,10 +324,17 @@ void TimeQuad::vanilla_kernels()
 	/* In zero */
 	ks_p( 0 , l_kernel/2 ) = 2.0*sqrt(2.0)/sqrt(dt);
 	ks_q( 0 , l_kernel/2 ) = 0 ;
+    
+    for (uint i = 0 ; i < l_kernel; i++ )
+    {
+        ks_p( 0 , i ) *= prefactor ;
+        ks_q( 0 , i ) *= prefactor ;
+    }
 	
 }	
 
-void TimeQuad::normalize_for_ffts()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::normalize_for_ffts()
 {	
 	double fft_norm = 1.0/l_kernel ; // Normalization for FFT's
 
@@ -317,7 +345,8 @@ void TimeQuad::normalize_for_ffts()
 	}
 }	
 
-void TimeQuad::copy_vanillas()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::copy_vanillas()
 {
 	/*Could be parallelized*/
 	for ( uint i = 1 ; i<n_kernels ; i++ ) 
@@ -330,7 +359,8 @@ void TimeQuad::copy_vanillas()
 	}
 }
 
-void TimeQuad::apply_filters()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::apply_filters()
 {	
 	uint l_f = l_kernel_half_c( l_kernel );
 	double f[l_f];
@@ -397,7 +427,8 @@ void TimeQuad::apply_filters()
 	}
 }
 
-void TimeQuad::apply_windows()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::apply_windows()
 {
 	if (windows.get_ptr() != NULL)
 	{
@@ -422,7 +453,8 @@ void TimeQuad::apply_windows()
 	}		
 }
 
-void TimeQuad::half_normalization()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::half_normalization()
 {	
 	for ( uint j = 0 ; j<n_kernels ; j++ ) 
 	{
@@ -445,7 +477,8 @@ void TimeQuad::half_normalization()
 	}
 }
 
-void TimeQuad::half_denormalization()
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::half_denormalization()
 {	
 	for ( uint j = 0 ; j<n_kernels ; j++ ) 
 	{
@@ -457,8 +490,9 @@ void TimeQuad::half_denormalization()
 	}
 }
 
+template<class Quads_Index_Type>
 template<class DataType>
-void TimeQuad::execute( DataType* data , uint64_t l_data )
+void TimeQuad<Quads_Index_Type>::execute( DataType* data , uint64_t l_data )
 {
 	
 	execution_checks( l_data );
@@ -467,8 +501,9 @@ void TimeQuad::execute( DataType* data , uint64_t l_data )
 	
 }
 
+template<class Quads_Index_Type>
 template<class DataType>
-void TimeQuad::execute_py( py::array_t<DataType> data )
+void TimeQuad<Quads_Index_Type>::execute_py( py::array_t<DataType> data )
 {
 	py::buffer_info buf = data.request(); 
 
@@ -480,7 +515,8 @@ void TimeQuad::execute_py( py::array_t<DataType> data )
 	execute( (DataType*)buf.ptr , buf.size );
 }
 
-np_double TimeQuad::get_ps()
+template<class Quads_Index_Type>
+np_double TimeQuad<Quads_Index_Type>::get_ps()
 {
 	/*
 	Pybind11 doesn't work with uint64_t 
@@ -499,7 +535,8 @@ np_double TimeQuad::get_ps()
 	);
 }
 
-np_double TimeQuad::get_qs()
+template<class Quads_Index_Type>
+np_double TimeQuad<Quads_Index_Type>::get_qs()
 {
 	/*
 	Pybind11 doesn't work with uint64_t 

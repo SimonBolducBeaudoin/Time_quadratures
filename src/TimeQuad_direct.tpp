@@ -1,8 +1,9 @@
 //CONSTRUCTOR
-TimeQuad_direct::TimeQuad_direct
+template<class Quads_Index_Type>
+TimeQuad_direct<Quads_Index_Type>::TimeQuad_direct
 ( 
 	const Multi_array<double,2>& ks_p , const Multi_array<double,2>& ks_q ,
-	const Multi_array<double,2>& ps , const Multi_array<double,2>& qs ,
+	const Multi_array<double,2,Quads_Index_Type>& ps , const Multi_array<double,2,Quads_Index_Type>& qs ,
 	uint l_kernel , uint n_kernels , uint64_t l_data , int n_threads
 )
 : 
@@ -12,8 +13,8 @@ TimeQuad_direct::TimeQuad_direct
 	ps(ps) , qs(qs)
 { omp_set_num_threads(n_threads); }
 
-								
-void TimeQuad_direct::execute( int16_t* data )
+template<class Quads_Index_Type>							
+void TimeQuad_direct<Quads_Index_Type>::execute( int16_t* data )
 {	
 	/* This is not optimized */
 	for ( uint i = 0 ; i<n_kernels ; i++ ) 
@@ -22,8 +23,9 @@ void TimeQuad_direct::execute( int16_t* data )
 	}
 }
 
+template<class Quads_Index_Type>
 template<class DataType>
-void TimeQuad_direct::conv_directe( DataType* data , double* k_p , double* k_q , double* p , double* q  )
+void TimeQuad_direct<Quads_Index_Type>::conv_directe( DataType* data , double* k_p , double* k_q , double* p , double* q  )
 {	
 	// Begenning
 	for(uint64_t i = 0 ; i < l_kernel - 1 ; i++)

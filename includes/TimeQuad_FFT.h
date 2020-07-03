@@ -11,6 +11,7 @@ typedef unsigned int uint;
 typedef py::array_t<double,py::array::c_style> np_double;
 typedef py::array_t<complex_d,py::array::c_style> np_complex_d;
 
+template<class Quads_Index_Type=uint>
 class TimeQuad_FFT: public TimeQuad_algorithm
 {
 	public :
@@ -19,8 +20,8 @@ class TimeQuad_FFT: public TimeQuad_algorithm
 	( 
 		const Multi_array<double,2>& ks_p , 
 		const Multi_array<double,2>& ks_q ,
-		const Multi_array<double,2>& ps , 
-		const Multi_array<double,2>& qs ,
+		const Multi_array<double,2,Quads_Index_Type>& ps , 
+		const Multi_array<double,2,Quads_Index_Type>& qs ,
 		uint l_kernel , uint n_kernels , uint64_t l_data , uint  l_fft , int n_threads 
 	);
 	// Destructor
@@ -56,8 +57,8 @@ class TimeQuad_FFT: public TimeQuad_algorithm
 	// Inherited arrays
 	const Multi_array<double,2>& ks_p ;
 	const Multi_array<double,2>& ks_q ;
-	const Multi_array<double,2>& ps ; 
-	const Multi_array<double,2>& qs ;
+	const Multi_array<double,2,Quads_Index_Type>& ps ; 
+	const Multi_array<double,2,Quads_Index_Type>& qs ;
 	
 	fftw_plan kernel_plan;
 	fftw_plan g_plan;
@@ -80,3 +81,5 @@ class TimeQuad_FFT: public TimeQuad_algorithm
 	/* Constructor sequence */
 	void prepare_kernels() ;
 };
+
+#include "../src/TimeQuad_FFT.tpp"

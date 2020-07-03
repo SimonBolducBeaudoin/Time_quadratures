@@ -1,8 +1,8 @@
 #include <TimeQuad_py.h>
 
 // CLASS MACROS
-#define PY_TIME_QUAD(DataType)\
-	py::class_<TimeQuad>( m , "TimeQuad")\
+#define PY_TIME_QUAD(DataType,QuadsIndexType)\
+	py::class_<TimeQuad<QuadsIndexType>>( m , "TimeQuad_"#QuadsIndexType)\
 	/*Default constructor*/\
 	.def\
 	(\
@@ -48,21 +48,21 @@
 		"filters"_a.noconvert() , "windows"_a.noconvert() , \
 		"l_fft"_a.noconvert() = (1<<10) , "n_threads"_a.noconvert() = 36 \
 	) \
-	.def("ks_p", &TimeQuad::get_ks_p)\
-	.def("ks_q", &TimeQuad::get_ks_q)\
-	.def("ps", &TimeQuad::get_ps )\
-	.def("qs", &TimeQuad::get_qs )\
-	.def("half_norms_p", &TimeQuad::get_half_norms_p )\
-	.def("half_norms_p", &TimeQuad::get_half_norms_p )\
-	.def("half_denormalization", &TimeQuad::half_denormalization)\
-	.def("execute" , &TimeQuad::execute_py<DataType> )\
+	.def("ks_p", &TimeQuad<QuadsIndexType>::get_ks_p)\
+	.def("ks_q", &TimeQuad<QuadsIndexType>::get_ks_q)\
+	.def("ps", &TimeQuad<QuadsIndexType>::get_ps )\
+	.def("qs", &TimeQuad<QuadsIndexType>::get_qs )\
+	.def("half_norms_p", &TimeQuad<QuadsIndexType>::get_half_norms_p )\
+	.def("half_norms_p", &TimeQuad<QuadsIndexType>::get_half_norms_p )\
+	.def("half_denormalization", &TimeQuad<QuadsIndexType>::half_denormalization)\
+	.def("execute" , &TimeQuad<QuadsIndexType>::execute_py<DataType> )\
 	\
 	;
-
 	
 void init_TimeQuad(py::module &m)
 {
-	PY_TIME_QUAD(int16_t) ;
+	PY_TIME_QUAD(int16_t,uint) ;
+	PY_TIME_QUAD(int16_t,uint64_t) ;
 }
 
 // CLOSE MACRO SCOPES

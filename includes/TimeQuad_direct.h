@@ -4,6 +4,7 @@
 
 #include <TimeQuad_algorithm.h>
 
+template<class Quads_Index_Type=uint>
 class TimeQuad_direct : public TimeQuad_algorithm
 {
 	public :
@@ -12,10 +13,12 @@ class TimeQuad_direct : public TimeQuad_algorithm
 	( 
 	const Multi_array<double,2>& ks_p , 
 	const Multi_array<double,2>& ks_q ,
-	const Multi_array<double,2>& ps , 
-	const Multi_array<double,2>& qs ,
+	const Multi_array<double,2,Quads_Index_Type>& ps , 
+	const Multi_array<double,2,Quads_Index_Type>& qs ,
 	uint l_kernel , uint n_kernels , uint64_t l_data , int n_threads
 	);
+    
+    
 	// Destructor
 	~TimeQuad_direct(){};
 	
@@ -43,9 +46,11 @@ class TimeQuad_direct : public TimeQuad_algorithm
 	const Multi_array<double,2>& ks_p ; 
 	const Multi_array<double,2>& ks_q ;
 	// Quadratures
-	const Multi_array<double,2>& ps ; 
-	const Multi_array<double,2>& qs ;
+	const Multi_array<double,2,Quads_Index_Type>& ps ; 
+	const Multi_array<double,2,Quads_Index_Type>& qs ;
 	
 	template<class DataType>
 	void conv_directe( DataType* data , double* k_p , double* k_q , double* p , double* q  );
 };
+
+#include "../src/TimeQuad_direct.tpp"

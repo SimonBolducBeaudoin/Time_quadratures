@@ -7,9 +7,9 @@
 
 #include <Multi_array.h>
 
-#include "TimeQuad_algorithm.h"
-#include "TimeQuad_FFT.h"
-#include "TimeQuad_direct.h"
+#include <TimeQuad_algorithm.h>
+#include <TimeQuad_FFT.h>
+#include <TimeQuad_direct.h>
 
 /*
 	TODOS
@@ -24,6 +24,7 @@
 		- https://www.geeksforgeeks.org/virtual-function-cpp/
 */
 
+template<class Quads_Index_Type>
 class TimeQuad
 {
 	public :
@@ -113,7 +114,7 @@ class TimeQuad
 		double dt ; // 0.03125 [ns] 
 		const double h = 6.62607004*pow(10.0,-25.0) ; // Plank's constant 6,62607004 × 10-25 m2 kg / ns
 		double prefactor ; // sqrt( 2/ Zh )
-		double compute_prefactor( double Z){ return sqrt( 2/ (Z*h) );} ;
+		double compute_prefactor( double Z){ return sqrt( 2.0/ (Z*h) );} ;
 		double f_max_analogue  ; // 10 [GHz] 
 		double f_min_analogue  ; // 0.5 [GHz] 
 		double f_Nyquist ; //16 [GHz] = 1/(2*dt)
@@ -137,8 +138,8 @@ class TimeQuad
 		Multi_array<double,1> half_norms_q ;
 		
 		// Quadratures
-		Multi_array<double,2> ps ; 
-		Multi_array<double,2> qs ;
+		Multi_array<double,2,Quads_Index_Type> ps ; 
+		Multi_array<double,2,Quads_Index_Type> qs ;
 		
 		TimeQuad_algorithm* algorithm ;
 		

@@ -1,9 +1,10 @@
 //CONSTRUCTOR
 
-TimeQuad_FFT::TimeQuad_FFT
+template<class Quads_Index_Type>
+TimeQuad_FFT<Quads_Index_Type>::TimeQuad_FFT
 (	
 	const Multi_array<double,2>& ks_p , const Multi_array<double,2>& ks_q ,
-	const Multi_array<double,2>& ps , const Multi_array<double,2>& qs ,
+	const Multi_array<double,2,Quads_Index_Type>& ps , const Multi_array<double,2,Quads_Index_Type>& qs ,
 	uint l_kernel , uint n_kernels , uint64_t l_data , uint  l_fft , int n_threads 
 )
 :
@@ -26,7 +27,8 @@ TimeQuad_FFT::TimeQuad_FFT
 }
 
 // DESTRUCTOR
-TimeQuad_FFT::~TimeQuad_FFT()
+template<class Quads_Index_Type>
+TimeQuad_FFT<Quads_Index_Type>::~TimeQuad_FFT()
 {	
 	
     destroy_plans();
@@ -35,8 +37,8 @@ TimeQuad_FFT::~TimeQuad_FFT()
 }
 
 // PREPARE_PLANS METHOD
-
-void TimeQuad_FFT::prepare_plans()
+template<class Quads_Index_Type>
+void TimeQuad_FFT<Quads_Index_Type>::prepare_plans()
 {   
 	fftw_import_wisdom_from_filename("FFTW_Wisdom.dat");
 	kernel_plan = fftw_plan_dft_r2c_1d( l_fft , (double*)ks_p_complex[0] , reinterpret_cast<fftw_complex*>(ks_p_complex[0]) , FFTW_EXHAUSTIVE);
@@ -45,15 +47,16 @@ void TimeQuad_FFT::prepare_plans()
 	fftw_export_wisdom_to_filename("FFTW_Wisdom.dat"); 
 }
 
-
-void TimeQuad_FFT::destroy_plans()
+template<class Quads_Index_Type>
+void TimeQuad_FFT<Quads_Index_Type>::destroy_plans()
 {
 	fftw_destroy_plan(kernel_plan); 
     fftw_destroy_plan(g_plan); 
     fftw_destroy_plan(h_plan); 
 }
 
-void TimeQuad_FFT::prepare_kernels()
+template<class Quads_Index_Type>
+void TimeQuad_FFT<Quads_Index_Type>::prepare_kernels()
 {
 	/*Could be parallelized*/
 	for ( uint j = 0 ; j<n_kernels ; j++ ) 
@@ -73,8 +76,9 @@ void TimeQuad_FFT::prepare_kernels()
 		fftw_execute_dft_r2c(kernel_plan, (double*)ks_q_complex[j] , reinterpret_cast<fftw_complex*>(ks_q_complex[j]) ); 
 	}
 }
-						
-void TimeQuad_FFT::execute( int16_t* data )
+
+template<class Quads_Index_Type>						
+void TimeQuad_FFT<Quads_Index_Type>::execute( int16_t* data )
 {	
     /////////////////////
     // RESET PS AND QS //
@@ -84,11 +88,17 @@ void TimeQuad_FFT::execute( int16_t* data )
         manage_thread_affinity();
         // Reset ps and qs to 0
         // Only the parts that are subject to race conditions
+        /*
+            Possible optimizations :
+                - Inverse i and j loop
+                - Use collapse of nested loops : https://pages.tacc.utexas.edu/~eijkhout/pcse/html/omp-loop.html
+                - SIMD instructions : https://www.openmp.org/spec-html/5.0/openmpsu42.html
+        */
+        
         #pragma omp for
 		for( uint i=0; i < n_chunks-1 ; i++ )
 		{		
-			///// THIS FOR EACH KERNELS PAIRS
-			
+			///// THIS FOR EACH KERNELS PAIRS	
 			for ( uint j = 0 ; j<n_kernels ; j++ ) 
 			{   
                 // Last l_kernel-1.0 points
@@ -98,13 +108,11 @@ void TimeQuad_FFT::execute( int16_t* data )
 					ps(j,i*l_chunk+k) = 0.0 ;
 					qs(j,i*l_chunk+k) = 0.0 ;
 				}
-			}
-			
+			}	
 		}
     }
     /////////////////////
-    
-    
+     
 	#pragma omp parallel
 	{	
 		manage_thread_affinity();
@@ -184,18 +192,19 @@ void TimeQuad_FFT::execute( int16_t* data )
 	///// The rest ---->
 	if (l_reste != 0)
 	{	
-		// make sure g only contains zeros
-		for( uint k=0; k < l_fft ; k++ )
-		{
-			gs(0,k) = 0 ;
-		}
-		// add the rest
-		for( uint k=0; k < l_reste ; k++ )
+        // add the rest
+        uint k=0 ;
+		for(; k < l_reste ; k++ )
 		{
 			gs(0,k) = (double)data[n_chunks*l_chunk + k] ;
 		}
-		fftw_execute_dft_r2c(g_plan, gs[0] , reinterpret_cast<fftw_complex*>( fs[0]) );
+		// make sure g only contains zeros
+		for(; k < l_fft ; k++ )
+		{
+			gs(0,k) = 0 ;
+		}
 		
+		fftw_execute_dft_r2c(g_plan, gs[0] , reinterpret_cast<fftw_complex*>( fs[0]) );
 		
 		// Product 
 		for ( uint j = 0 ; j<n_kernels ; j++ ) 
@@ -214,11 +223,10 @@ void TimeQuad_FFT::execute( int16_t* data )
 			// Select only the part of the ifft that contributes to the full output length
             for( uint k = 0 ; k < l_reste + l_kernel - 1 ; k++ )
 			{
-				ps(j,n_chunks*l_chunk+k) = ( (double*)h_ps(j,0))[k] /l_fft ;
-				qs(j,n_chunks*l_chunk+k) = ( (double*)h_qs(j,0))[k] /l_fft ;
+				ps(j,n_chunks*l_chunk+k) += ( (double*)h_ps(j,0))[k] /l_fft ;
+				qs(j,n_chunks*l_chunk+k) += ( (double*)h_qs(j,0))[k] /l_fft ;
 			}
 		}
 	}
 	/////
 }
-
