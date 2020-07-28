@@ -11,7 +11,6 @@ WINDOWING = ../Windowing
 SPECIAL_FUNC = ../Special_functions
 NUMERICAL_INT = ../Numerical_integration
 TIME_QUAD = ../Time_quadratures
-
 LIBS = ../libs
 
 IDIR = includes
@@ -25,7 +24,9 @@ SPECIAL_FUNC_OBJ = $(wildcard $(SPECIAL_FUNC)/*$(ODIR)/*.o)
 NUMERICAL_INT_OBJ = $(wildcard $(NUMERICAL_INT)/*$(ODIR)/*.o)
 
 EXTERNAL_OBJ = $(OMP_EXTRA_OBJ) $(WINDOWING_OBJ) $(SPECIAL_FUNC_OBJ) $(NUMERICAL_INT_OBJ)
-EXTERNAL_INCLUDES = -I$(MULTI_ARRAY)/$(IDIR) -I$(OMP_EXTRA)/$(IDIR) -I$(WINDOWING)/$(IDIR) -I$(NUMERICAL_INT)/$(IDIR) -I$(SPECIAL_FUNC)/$(IDIR) -I$(TIME_QUAD)/$(IDIR)
+EXTERNAL_INCLUDES = -I$(MULTI_ARRAY)/$(IDIR) -I$(OMP_EXTRA)/$(IDIR) -I$(WINDOWING)/$(IDIR) \
+					-I$(NUMERICAL_INT)/$(IDIR) -I$(SPECIAL_FUNC)/$(IDIR) \
+					-I$(TIME_QUAD)/$(IDIR) -I$(SCOPED_TIMER)/$(IDIR) 
 
 SRC  = $(wildcard $(SDIR)/*.cpp)
 OBJ  = $(patsubst $(SDIR)/%.cpp,$(ODIR)/%.o,$(SRC))
@@ -63,6 +64,29 @@ INCLUDES = $(OMP) $(PY_INCL) $(EXTERNAL_INCLUDES)
 COMPILE = $(CXX) $(CPP_STD) $(OPTIMIZATION) $(POSITION_INDEP) $(WARNINGS) -c -o $@ $< $(INCLUDES) $(DEPS_FLAG) $(MINGW_COMPATIBLE)
 ASSEMBLY = $(CXX) $(CPP_STD) $(OPTIMIZATION) $(POSITION_INDEP) $(WARNINGS) -S -o $@ $< $(INCLUDES) $(DEPS_FLAG) $(MINGW_COMPATIBLE)
 
+LINK_BENCHMARK_CUSTOM = $(MATH) $(FFTW) $(OMP) $(PY_LINKS) $(EXTERNAL_OBJ)
+
+LINK_BENCHMARK = \
+	$(LINK_BENCHMARK_CUSTOM) \
+	-L$(LIBS)/benchmark/build/src -lbenchmark -lpthread -lshlwapi
+
+LINKING_BENCHMARK = \
+	$(CXX)\
+	-o $@ $< \
+	-O3 -march=native \
+	$(LINK_BENCHMARK)\
+	$(DEPS_FLAG) $(MINGW_COMPATIBLE) \
+	
+INCLUDES_BENCHMARK = \
+	-I $(LIBS)/benchmark/include \
+	$(INCLUDES)
+	
+COMPILE_BENCHMARK = \
+	$(CXX) $(CPP_STD) $< -O3 -march=native \
+	$(INCLUDES_BENCHMARK) \
+	$(DEPS_FLAG) $(MINGW_COMPATIBLE) \
+	-c -o $@
+
 python_debug_library : $(TARGET_PYLIB)
 
 compile_objects : $(OBJ)
@@ -72,6 +96,18 @@ assembly : $(ASS)
 all : $(TARGET_PYLIB) $(TARGET_STATIC) $(OBJ) $(ASS)
 
 static_library : $(TARGET_STATIC)
+
+benchmark : benchmark.exe
+
+benchmark.exe : benchmark.o
+	@ echo " "
+	@ echo "---------Compile $@ ---------"
+	$(LINKING_BENCHMARK)
+
+benchmark.o : benchmark.cpp
+	@ echo " "
+	@ echo "---------Compile $@ from $< ---------"
+	$(COMPILE_BENCHMARK)	
 
 $(TARGET_PYLIB): $(OBJ)
 	@ echo " "
@@ -96,6 +132,6 @@ $(ODIR)/%.s : $(SDIR)/%.cpp
 -include $(DEPS)
 
 clean:
-	@rm -f $(TARGET_PYLIB) $(TARGET_STATIC) $(OBJ) $(ASS) $(DEPS)
+	@rm -f $(TARGET_PYLIB) $(TARGET_STATIC) $(OBJ) $(ASS) $(DEPS) benchmark.o benchmark.exe
 	 	 
-.PHONY: all , clean , python_debug_library , compile_objects , static_library , assembly 
+.PHONY: all , clean , python_debug_library , compile_objects , static_library , assembly , benchmark

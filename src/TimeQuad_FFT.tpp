@@ -95,7 +95,8 @@ void TimeQuad_FFT<Quads_Index_Type>::execute( int16_t* data )
                 - SIMD instructions : https://www.openmp.org/spec-html/5.0/openmpsu42.html
         */
         
-        #pragma omp for
+		
+        #pragma omp for simd collapse(3)
 		for( uint i=0; i < n_chunks-1 ; i++ )
 		{		
 			///// THIS FOR EACH KERNELS PAIRS	
@@ -103,16 +104,17 @@ void TimeQuad_FFT<Quads_Index_Type>::execute( int16_t* data )
 			{   
                 // Last l_kernel-1.0 points
 				// Subject to race conditions
-				for( uint k=l_chunk ; k < l_chunk + l_kernel-1 ; k++ )
+				for( uint k=l_chunk ; k < l_fft; k++ )
 				{
 					ps(j,i*l_chunk+k) = 0.0 ;
 					qs(j,i*l_chunk+k) = 0.0 ;
 				}
 			}	
 		}
+		
     }
     /////////////////////
-     
+	
 	#pragma omp parallel
 	{	
 		manage_thread_affinity();
@@ -125,8 +127,10 @@ void TimeQuad_FFT<Quads_Index_Type>::execute( int16_t* data )
 		{
 			gs(this_thread,k) = 0;
 		}
+		
 	
 	//// Loop on chunks ---->
+		
 		#pragma omp for
 		for( uint i=0; i < n_chunks ; i++ )
 		{
@@ -138,6 +142,7 @@ void TimeQuad_FFT<Quads_Index_Type>::execute( int16_t* data )
 				gs(this_thread,j) = (double)data[i*l_chunk + j] ; // Cast data to double
 			}
 			
+			
 			fftw_execute_dft_r2c( g_plan, gs[this_thread] , reinterpret_cast<fftw_complex*>( fs[this_thread] ) );
 			
 			/////
@@ -147,6 +152,8 @@ void TimeQuad_FFT<Quads_Index_Type>::execute( int16_t* data )
 			for ( uint j = 0 ; j<n_kernels ; j++ ) 
 			{
 				// Product
+				
+				
 				for( uint k=0 ; k < (l_fft/2+1) ; k++ )
 				{	
 					tmp = fs(this_thread,k) ;
@@ -154,7 +161,7 @@ void TimeQuad_FFT<Quads_Index_Type>::execute( int16_t* data )
 					h_qs(j,this_thread,k) = ks_q_complex(j,k) * tmp;
 				}
 				
-								
+				
 				// ifft
 				fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(h_ps(j,this_thread)) , (double*)h_ps(j,this_thread) );  
 				fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(h_qs(j,this_thread)) , (double*)h_qs(j,this_thread) ); 

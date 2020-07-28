@@ -1,8 +1,10 @@
 #pragma once
 
 #include <omp_extra.h>
-
+#include <Multi_array.h>
 #include <TimeQuad_algorithm.h>
+
+typedef unsigned int uint;
 
 template<class Quads_Index_Type=uint>
 class TimeQuad_direct : public TimeQuad_algorithm

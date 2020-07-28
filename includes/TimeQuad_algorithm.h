@@ -1,6 +1,5 @@
 #pragma once
-
-#include <Multi_array.h>
+#include<stdint.h>
 
 class TimeQuad_algorithm
 {

@@ -130,6 +130,47 @@ TimeQuad<Quads_Index_Type>::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filte
 	{ 
 		init_fft(l_fft); 
 	};
+/////////////////////////////////////////
+// FFT_advanced convolutionc constructors
+template<class Quads_Index_Type>
+TimeQuad<Quads_Index_Type>::TimeQuad(	KS_INPUTS , AC_INPUTS , double alpha , uint l_fft , uint howmany, int n_threads )
+	: 	
+		INIT_LIST_PART1 , 
+		FILTERS_WINDOWS_NULL_INITS , 
+		INIT_LIST_PART2
+	{ 
+		init_fft_advanced(l_fft,howmany); 
+	};
+
+template<class Quads_Index_Type>
+TimeQuad<Quads_Index_Type>::TimeQuad( KS_INPUTS , AC_INPUTS , Multi_array<complex_d,2> filters , Multi_array<double,2> windows , uint l_fft , uint howmany, int n_threads)
+	: 	
+		INIT_LIST_PART1 , 
+		FILTERS_WINDOWS_INITS , 
+		INIT_LIST_PART2
+	{ 
+		init_fft_advanced(l_fft,howmany); 
+	};
+
+template<class Quads_Index_Type>
+TimeQuad<Quads_Index_Type>::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , double alpha , uint l_fft , uint howmany, int n_threads )
+	: 
+		INIT_LIST_PART1 , 
+		FILTERS_NUMPY_INITS , 
+		INIT_LIST_PART2
+	{  
+		init_fft_advanced(l_fft,howmany); 
+	};
+
+template<class Quads_Index_Type>	
+TimeQuad<Quads_Index_Type>::TimeQuad( KS_INPUTS , AC_INPUTS , np_complex_d filters , np_double windows , uint l_fft , uint howmany, int n_threads )
+	: 
+		INIT_LIST_PART1 , 
+		FILTERS_WINDOWS_NUMPY_INITS , 
+		INIT_LIST_PART2
+	{ 
+		init_fft_advanced(l_fft,howmany); 
+	};
 
 // DESTRUCTOR
 template<class Quads_Index_Type>
@@ -268,7 +309,7 @@ void TimeQuad<Quads_Index_Type>::init_direct()
 	Memory allocation for algorithm object
 	*/
 	
-	TimeQuad_direct<Quads_Index_Type>* tmp = new TimeQuad_direct<Quads_Index_Type>( ks_p , ks_q , ps , qs , l_kernel , n_kernels , l_data , n_threads  );
+	TimeQuad_direct<Quads_Index_Type>* tmp = new TimeQuad_direct<Quads_Index_Type>				( ks_p , ks_q , ps , qs , l_kernel , n_kernels , l_data , n_threads  );
 	algorithm =  tmp ;
 }
 
@@ -280,7 +321,20 @@ void TimeQuad<Quads_Index_Type>::init_fft( uint l_fft )
 	Memory allocation for algorithm object
 	*/
 	
-	TimeQuad_FFT<Quads_Index_Type>* tmp = new TimeQuad_FFT<Quads_Index_Type>( ks_p , ks_q , ps , qs , l_kernel , n_kernels , l_data , l_fft , n_threads );
+	TimeQuad_FFT<Quads_Index_Type>* tmp = new TimeQuad_FFT<Quads_Index_Type>					( ks_p , ks_q , ps , qs , l_kernel , n_kernels , l_data , l_fft , n_threads );
+	algorithm =  tmp ;
+	
+}
+
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::init_fft_advanced( uint l_fft , uint howmany)
+{
+	init_gen();
+	/*
+	Memory allocation for algorithm object
+	*/
+	
+	TimeQuad_FFT_advanced<Quads_Index_Type>* tmp = new TimeQuad_FFT_advanced<Quads_Index_Type>	( ks_p , ks_q , ps , qs , l_kernel , n_kernels , l_data , l_fft , howmany, n_threads );
 	algorithm =  tmp ;
 	
 }

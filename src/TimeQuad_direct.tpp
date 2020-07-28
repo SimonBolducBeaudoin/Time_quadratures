@@ -33,6 +33,9 @@ void TimeQuad_direct<Quads_Index_Type>::conv_directe( DataType* data , double* k
 		for(uint64_t j = 0; j <= i  ; j++)
 		{	
 			p[i] += (double)(k_p[j]* data[(i - j)]) ;
+		}
+		for(uint64_t j = 0; j <= i  ; j++)
+		{	
 			q[i] += (double)(k_q[j]* data[(i - j)]) ;
 		}
 	}
@@ -40,11 +43,17 @@ void TimeQuad_direct<Quads_Index_Type>::conv_directe( DataType* data , double* k
 	uint64_t translation =  l_kernel - 1;
 
 	/*Could be parallelized*/
+	#pragma GCC ivdep
 	for(uint64_t i = 0 ; i < l_data - l_kernel + 1 ; i++)
 	{
+		#pragma GCC ivdep
 		for(uint64_t j=0; j < l_kernel ; j++)
 		{
 			p[i+translation] += data[ (l_kernel - 1) - j + i]*k_p[j] ;
+		}
+		#pragma GCC ivdep
+		for(uint64_t j=0; j < l_kernel ; j++)
+		{
 			q[i+translation] += data[ (l_kernel - 1) - j + i]*k_q[j] ;
 		}
 	}
@@ -56,6 +65,9 @@ void TimeQuad_direct<Quads_Index_Type>::conv_directe( DataType* data , double* k
 		for(uint64_t j=0; j <= i ; j++)
 		{
 			p[end_full-i] += k_p[(l_kernel-1)-j]*data[(l_data - 1)-i+j] ;
+		}
+		for(uint64_t j=0; j <= i ; j++)
+		{
 			q[end_full-i] += k_q[(l_kernel-1)-j]*data[(l_data - 1)-i+j] ;
 		}
 	}

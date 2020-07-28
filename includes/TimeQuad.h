@@ -1,6 +1,7 @@
 #pragma once
 
 // #include "../../includes/header_common.h"
+
 #include <omp_extra.h>
 #include <special_functions.h>
 #include <Windowing.h>
@@ -8,9 +9,13 @@
 #include <Multi_array.h>
 
 #include <TimeQuad_algorithm.h>
-#include <TimeQuad_FFT.h>
 #include <TimeQuad_direct.h>
+#include <TimeQuad_FFT.h>
+#include <TimeQuad_FFT_advanced.h>
 
+
+typedef unsigned int uint ;
+typedef std::complex<double> complex_d;
 /*
 	TODOS
 	- Find a way to automatically normalized the result of the convolution product ..?
@@ -33,12 +38,12 @@ class TimeQuad
 		TimeQuad
 		( 
 			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , 
-			double f_min_analogue , double alpha = 0.5 , int n_threads = 36 
+			double f_min_analogue , double alpha , int n_threads 
 		);  /*Windows and filter set to NULL*/
 		TimeQuad
 		( 
 			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , 
-			double f_min_analogue , Multi_array<complex_d,2> filters , Multi_array<double,2> windows , int n_threads = 36 
+			double f_min_analogue , Multi_array<complex_d,2> filters , Multi_array<double,2> windows , int n_threads
 		);
 		TimeQuad 
 		( 
@@ -54,12 +59,12 @@ class TimeQuad
 		TimeQuad
 		( 
 			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , 
-			double f_min_analogue , double alpha , uint l_fft , int n_threads = 36 
+			double f_min_analogue , double alpha , uint l_fft , int n_threads 
 		);
 		TimeQuad
 		( 
 			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , double f_min_analogue , 
-			Multi_array<complex_d,2> filters , Multi_array<double,2> windows , uint l_fft , int n_threads = 36 
+			Multi_array<complex_d,2> filters , Multi_array<double,2> windows , uint l_fft , int n_threads 
 		);
 		TimeQuad 
 		( 
@@ -71,7 +76,27 @@ class TimeQuad
 			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , 	double f_max_analogue , 
 			double f_min_analogue , np_complex_d filters , 	np_double windows , uint l_fft , int n_threads 
 		); /*Windows and filter given by numpy array*/
-			
+		/* FFT_advanced convolution */
+		TimeQuad
+		( 
+			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , 
+			double f_min_analogue , double alpha , uint l_fft , uint howmany, int n_threads 
+		);
+		TimeQuad
+		( 
+			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , double f_min_analogue , 
+			Multi_array<complex_d,2> filters , Multi_array<double,2> windows , uint l_fft , uint howmany, int n_threads 
+		);
+		TimeQuad 
+		( 
+			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , 	double f_max_analogue , 
+			double f_min_analogue , np_complex_d filters , double alpha , uint l_fft , uint howmany, int n_threads 
+		); /*Filter given by numpy array*/
+		TimeQuad 
+		( 
+			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , 	double f_max_analogue , 
+			double f_min_analogue , np_complex_d filters , 	np_double windows , uint l_fft , uint howmany, int n_threads 
+		); /*Windows and filter given by numpy array*/
 		// Destructor
 		~TimeQuad();
 		
@@ -149,6 +174,7 @@ class TimeQuad
 		void init_gen();
 		void init_direct(); // Constructor calls this function
 		void init_fft( uint l_fft ); // Constructor calls this function
+		void init_fft_advanced( uint l_fft , uint howmany);
 		
 		// init sequence
 			void checks();
@@ -172,4 +198,6 @@ class TimeQuad
 		// Destructor sequence
 			void destroy_plans_kernels();
 			/* delete algorithm_Type */
-}; 
+};
+
+#include "../src/TimeQuad.tpp"

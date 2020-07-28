@@ -12,7 +12,6 @@ using namespace pybind11::literals;
 #include <Windowing.h>
 #include <Multi_array.h>
 #include <TimeQuad_algorithm.h>
-
 #include <fftw3.h>
 
 typedef unsigned int uint;
@@ -20,20 +19,20 @@ typedef py::array_t<double,py::array::c_style> np_double;
 typedef py::array_t<complex_d,py::array::c_style> np_complex_d;
 
 template<class Quads_Index_Type=uint>
-class TimeQuad_FFT: public TimeQuad_algorithm
+class TimeQuad_FFT_advanced: public TimeQuad_algorithm
 {
 	public :
 	// Contructor
-	TimeQuad_FFT
+	TimeQuad_FFT_advanced
 	( 
 		const Multi_array<double,2>& ks_p , 
 		const Multi_array<double,2>& ks_q ,
 		const Multi_array<double,2,Quads_Index_Type>& ps , 
 		const Multi_array<double,2,Quads_Index_Type>& qs ,
-		uint l_kernel , uint n_kernels , uint64_t l_data , uint  l_fft , int n_threads 
+		uint l_kernel , uint n_kernels , uint64_t l_data , uint  l_fft , uint howmany,int n_threads 
 	);
 	// Destructor
-	~TimeQuad_FFT() override;
+	~TimeQuad_FFT_advanced() override;
 	
 	# define EXECUTE(DataType) \
 		void execute( DataType* data ) override ;	
@@ -43,10 +42,12 @@ class TimeQuad_FFT: public TimeQuad_algorithm
 	#undef EXECUTE
 	
 	// Utilities
-	inline uint compute_l_chunk( uint l_kernel ,  uint l_fft  ){ return l_fft - l_kernel + 1 ; };
-	inline uint compute_n_chunks( uint64_t l_data , uint l_chunk ){ return  l_data/l_chunk ;	};
-	inline uint compute_l_reste( uint64_t l_data , uint l_chunk ){ return l_data%l_chunk ; };
-		
+	inline uint compute_l_chunk	(uint l_kernel,uint l_fft)		{ return l_fft - l_kernel + 1 ;	};
+	inline uint compute_n_chunks(uint64_t l_data,uint l_chunk)	{ return l_data/l_chunk ;		};
+	inline uint compute_l_reste	(uint64_t l_data,uint l_chunk)	{ return l_data%l_chunk ; 		};
+	inline uint compute_n_piece	(uint n_chunks,uint howmany)	{ return n_chunks/howmany ;		};
+	inline uint compute_l_hc	(uint l_fft)					{ return l_fft/2+1 ;		};
+	
 	private :
 	// Kernels info
 	uint l_kernel ;
@@ -56,11 +57,14 @@ class TimeQuad_FFT: public TimeQuad_algorithm
 	uint64_t l_data ;
 
 	uint l_fft; // Lenght(/number of elements) of the FFT used for FFT convolution
+	uint l_hc ;
+	uint howmany ; // howmany (to do many ffts on the same core)
 	int n_threads ;
 	
 	uint l_chunk ; // The length of a chunk
 	uint n_chunks ; // The number of chunks
 	uint l_reste ; // The length of what didn't fit into chunks
+	uint n_pieces ; // n_chunks/howmany
 	
 	// Inherited arrays
 	const Multi_array<double,2>& ks_p ;
@@ -90,4 +94,4 @@ class TimeQuad_FFT: public TimeQuad_algorithm
 	void prepare_kernels() ;
 };
 
-#include "../src/TimeQuad_FFT.tpp"
+#include "../src/TimeQuad_FFT_advanced.tpp"
