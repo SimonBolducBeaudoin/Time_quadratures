@@ -3,59 +3,35 @@
 // CLASS MACROS
 #define PY_TIME_QUAD(DataType,QuadsIndexType)\
 	py::class_<TimeQuad<QuadsIndexType>>( m , "TimeQuad_"#QuadsIndexType)\
-	/*Default constructor*/\
-	.def\
-	(\
-		py::init<uint,uint,double,uint64_t,double,double,double,double,uint,int>(), \
-		"l_kernel"_a.noconvert() = 257 , "n_kernels"_a.noconvert() = 1, \
-		"Z"_a.noconvert() = 40.35143201333281, \
-		"l_data"_a.noconvert() = (1<<16) , "dt"_a.noconvert() = 0.03125 ,\
-		"f_max_analogue"_a.noconvert() = 10.0 , "f_min_analogue"_a.noconvert() = 0.5 ,\
-		"alpha"_a.noconvert() = 0.5 ,\
-		"l_fft"_a.noconvert() = (1<<10) , "n_threads"_a.noconvert() = 36 \
-	)\
-	/*Constructor with filters only */\
+	/*Constructor fft convolution */\
 	.def\
 	(\
 		py::init\
 		<\
-			uint,uint,double,uint64_t,double,double,double, \
-			py::array_t<complex_d,py::array::c_style>, \
-			double,\
-			uint,int\
+			double,double,uint64_t,uint,\
+			np_complex_d,np_complex_d,\
+			double,uint,int\
 		>(), \
-		"l_kernel"_a.noconvert() = 257 , "n_kernels"_a.noconvert() = 1, \
-		"Z"_a.noconvert() = 40.35143201333281, \
-		"l_data"_a.noconvert() = (1<<16) , "dt"_a.noconvert() = 0.03125 ,\
-		"f_max_analogue"_a.noconvert() = 10.0 , "f_min_analogue"_a.noconvert() = 0.5 ,\
-		"filters"_a.noconvert() , "alpha"_a.noconvert() = 0.5 ,\
-		"l_fft"_a.noconvert() = (1<<10) , "n_threads"_a.noconvert() = 36 \
+		"Z"_a.noconvert() 				,\
+		"dt"_a.noconvert() 				,\
+		"l_data"_a.noconvert() 			,\
+		"kernel_conf"_a.noconvert()	 	,\
+		"betas"_a.noconvert() 			,\
+		"g"_a.noconvert() 				,\
+		"alpha"_a.noconvert()		 	,\
+		"l_fft"_a.noconvert() 			,\
+		"n_threads"_a.noconvert() 		\
 	) \
-	/*Constructor with filters and windows */\
-	.def\
-	(\
-		py::init\
-		<\
-			uint,uint,double,uint64_t,double,double,double, \
-			py::array_t<complex_d,py::array::c_style>, \
-			py::array_t<double,py::array::c_style>,\
-			uint,int\
-		>(), \
-		"l_kernel"_a.noconvert() = 257 , "n_kernels"_a.noconvert() = 1, \
-		"Z"_a.noconvert() = 40.35143201333281, \
-		"l_data"_a.noconvert() = (1<<16) , "dt"_a.noconvert() = 0.03125 ,\
-		"f_max_analogue"_a.noconvert() = 10.0 , "f_min_analogue"_a.noconvert() = 0.5 ,\
-		"filters"_a.noconvert() , "windows"_a.noconvert() , \
-		"l_fft"_a.noconvert() = (1<<10) , "n_threads"_a.noconvert() = 36 \
-	) \
-	.def("ks_p", &TimeQuad<QuadsIndexType>::get_ks_p)\
-	.def("ks_q", &TimeQuad<QuadsIndexType>::get_ks_q)\
-	.def("ps", &TimeQuad<QuadsIndexType>::get_ps )\
-	.def("qs", &TimeQuad<QuadsIndexType>::get_qs )\
-	.def("half_norms_p", &TimeQuad<QuadsIndexType>::get_half_norms_p )\
-	.def("half_norms_p", &TimeQuad<QuadsIndexType>::get_half_norms_p )\
-	.def("half_denormalization", &TimeQuad<QuadsIndexType>::half_denormalization)\
-	.def("execute" , &TimeQuad<QuadsIndexType>::execute_py<DataType> )\
+	.def		("ks", 						&TimeQuad<QuadsIndexType>::get_ks				)\
+	.def		("quads", 					&TimeQuad<QuadsIndexType>::get_quads			)\
+	.def		("betas", 					&TimeQuad<QuadsIndexType>::get_betas 			)\
+	.def		("g", 						&TimeQuad<QuadsIndexType>::get_g 				)\
+	.def		("filters", 				&TimeQuad<QuadsIndexType>::get_filters 			)\
+	.def		("half_norms", 				&TimeQuad<QuadsIndexType>::get_half_norms 		)\
+	.def		("half_denormalization", 	&TimeQuad<QuadsIndexType>::half_denormalization	)\
+	.def		("execute" , 				&TimeQuad<QuadsIndexType>::execute_py<DataType> )\
+	.def_static("compute_flat_band",		&TimeQuad<QuadsIndexType>::compute_flat_band, 	 \
+		"l_hc"_a , "dt"_a, "f_min_analogue"_a, "f_min_analogue"_a , "f_Nyquist"_a			)\
 	\
 	;
 	

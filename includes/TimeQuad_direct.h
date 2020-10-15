@@ -13,19 +13,23 @@ class TimeQuad_direct : public TimeQuad_algorithm
 	// Contructor
 	TimeQuad_direct
 	( 
-	const Multi_array<double,2>& ks_p , 
-	const Multi_array<double,2>& ks_q ,
-	const Multi_array<double,2,Quads_Index_Type>& ps , 
-	const Multi_array<double,2,Quads_Index_Type>& qs ,
-	uint l_kernel , uint n_kernels , uint64_t l_data , int n_threads
+	const Multi_array<double,3>& ks , 
+	const Multi_array<double,3,Quads_Index_Type>& quads ,
+	double dt ,
+	int n_threads
 	);
-    
     
 	// Destructor
 	~TimeQuad_direct(){};
 	
+	// Utilities
+	uint compute_n_quads			(const Multi_array<double,3>& ks )						{ return ks.get_n_k()			;};
+	uint compute_n_kernels			(const Multi_array<double,3>& ks )						{ return ks.get_n_j()			;};
+	uint compute_l_kernels			(const Multi_array<double,3>& ks )						{ return ks.get_n_i()			;};
+	inline uint64_t compute_l_full	(const Multi_array<double,3,Quads_Index_Type>& 	quads )	{ return quads.get_n_i()		;};
+	
 	# define EXECUTE(DataType) \
-		void execute( DataType* data ) override ;	
+		void execute( Multi_array<DataType,1,uint64_t>& data ) override ;	
 	
 	EXECUTE(int16_t)
 							
@@ -33,26 +37,18 @@ class TimeQuad_direct : public TimeQuad_algorithm
 		
 	private :
 	// Kernels info
-	uint l_kernel ;
-	uint n_kernels ;
-	
-	// Acquisition info
-	uint64_t l_data ; 
-	
-	// Quadratures info
-	uint64_t l_full ;
-
-	int n_threads ;
+	uint 		n_quads ;
+	uint 		n_kernels ;
+	uint 		l_kernel ;	
+	uint64_t 	l_full;
+	double 		dt;
+	int 		n_threads ;
 	
 	// Kernels
-	const Multi_array<double,2>& ks_p ; 
-	const Multi_array<double,2>& ks_q ;
+	const Multi_array<double,3>& ks ; 
 	// Quadratures
-	const Multi_array<double,2,Quads_Index_Type>& ps ; 
-	const Multi_array<double,2,Quads_Index_Type>& qs ;
+	const Multi_array<double,3,Quads_Index_Type>& quads ; 
 	
-	template<class DataType>
-	void conv_directe( DataType* data , double* k_p , double* k_q , double* p , double* q  );
 };
 
 #include "../src/TimeQuad_direct.tpp"

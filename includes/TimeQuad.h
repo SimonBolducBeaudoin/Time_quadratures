@@ -1,7 +1,5 @@
 #pragma once
 
-// #include "../../includes/header_common.h"
-
 #include <omp_extra.h>
 #include <special_functions.h>
 #include <Windowing.h>
@@ -11,7 +9,7 @@
 #include <TimeQuad_algorithm.h>
 #include <TimeQuad_direct.h>
 #include <TimeQuad_FFT.h>
-#include <TimeQuad_FFT_advanced.h>
+#include <cmath>
 
 
 typedef unsigned int uint ;
@@ -37,163 +35,139 @@ class TimeQuad
 		/* Direct convolution */
 		TimeQuad
 		( 
-			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , 
-			double f_min_analogue , double alpha , int n_threads 
-		);  /*Windows and filter set to NULL*/
+			double Z , double dt , uint64_t l_data , uint kernel_conf , 
+			Multi_array<complex_d,2> betas , Multi_array<complex_d,1> g ,
+			double alpha , int n_threads
+		);
 		TimeQuad
 		( 
-			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , 
-			double f_min_analogue , Multi_array<complex_d,2> filters , Multi_array<double,2> windows , int n_threads
-		);
-		TimeQuad 
-		( 
-			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , 	double f_max_analogue , 
-			double f_min_analogue , np_complex_d filters , double alpha , int n_threads 
-		); /*Filter given by numpy array*/
-		TimeQuad 
-		( 
-			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , 	double f_max_analogue , 
-			double f_min_analogue , np_complex_d filters , 	np_double windows , int n_threads 
-		); /*Windows and filter given by numpy array*/
+			double Z , double dt , uint64_t l_data , uint kernel_conf , 
+			np_complex_d betas , np_complex_d g ,
+			double alpha , int n_threads
+		); /* numpy array*/
 		/* FFT convolution */
 		TimeQuad
 		( 
-			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , 
-			double f_min_analogue , double alpha , uint l_fft , int n_threads 
+			double Z , double dt , uint64_t l_data , uint kernel_conf , 
+			Multi_array<complex_d,2> betas , Multi_array<complex_d,1> g ,
+			double alpha , uint l_fft , int n_threads
 		);
 		TimeQuad
 		( 
-			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , double f_min_analogue , 
-			Multi_array<complex_d,2> filters , Multi_array<double,2> windows , uint l_fft , int n_threads 
-		);
-		TimeQuad 
-		( 
-			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , 	double f_max_analogue , 
-			double f_min_analogue , np_complex_d filters , double alpha , uint l_fft , int n_threads 
-		); /*Filter given by numpy array*/
-		TimeQuad 
-		( 
-			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , 	double f_max_analogue , 
-			double f_min_analogue , np_complex_d filters , 	np_double windows , uint l_fft , int n_threads 
-		); /*Windows and filter given by numpy array*/
-		/* FFT_advanced convolution */
-		TimeQuad
-		( 
-			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , 
-			double f_min_analogue , double alpha , uint l_fft , uint howmany, int n_threads 
-		);
-		TimeQuad
-		( 
-			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , double f_max_analogue , double f_min_analogue , 
-			Multi_array<complex_d,2> filters , Multi_array<double,2> windows , uint l_fft , uint howmany, int n_threads 
-		);
-		TimeQuad 
-		( 
-			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , 	double f_max_analogue , 
-			double f_min_analogue , np_complex_d filters , double alpha , uint l_fft , uint howmany, int n_threads 
-		); /*Filter given by numpy array*/
-		TimeQuad 
-		( 
-			uint l_kernel , uint n_kernels , double Z , uint64_t l_data , double dt , 	double f_max_analogue , 
-			double f_min_analogue , np_complex_d filters , 	np_double windows , uint l_fft , uint howmany, int n_threads 
-		); /*Windows and filter given by numpy array*/
+			double Z , double dt , uint64_t l_data , uint kernel_conf , 
+			np_complex_d betas , np_complex_d g ,
+			double alpha , uint l_fft , int n_threads
+		); /* numpy array*/
 		// Destructor
 		~TimeQuad();
 		
 		// Python getters
-		np_double get_ks_p(){ return ks_p.share_py() ;};
-		np_double get_ks_q(){ return ks_q.share_py() ;};
+		np_double 		get_ks()			{ return ks.share_py() 			;};
+		np_complex_d 	get_betas()			{ return betas.copy_py() 		;};
+		np_complex_d 	get_g()				{ return g.copy_py() 			;};
+		np_complex_d 	get_filters()		{ return filters.copy_py() 		;};
 		
-		np_double get_half_norms_p(){ return half_norms_p.share_py() ;};
-		np_double get_half_norms_q(){ return half_norms_q.share_py() ;};
+		np_double 		get_half_norms()	{ return half_norms.copy_py() 	;};
+		
 			// Returns only the valid part of the convolution
-		np_double get_ps();
-		np_double get_qs();
+		np_double 		get_quads();
 		
 		// Utilities
-		inline uint l_kernel_half_c( uint l_kernel ){ return l_kernel/2+1 ;};
-		inline double fft_freq( uint i , uint l_fft , double dt ){ return ((double)i)/(dt*l_fft) ;};
-		inline double compute_f_Nyquist( double dt ){ return 1.0/(2.0*dt) ; };
-		inline double compute_t_max_analogue( double f_min_analogue ){ return  1.0/f_min_analogue ; };
-		inline uint64_t compute_l_valid( uint l_kernel, uint64_t l_data ){ return l_data - l_kernel + 1 ;} ;
-		inline uint64_t compute_l_full( uint l_kernel, uint64_t l_data ){ return l_kernel + l_data - 1 ; } ;
+		static uint 	compute_l_hc_from_l_kernel	( uint l_kernel )					{ return l_kernel/2+1 			;};
+		static uint 	compute_l_kernel_from_l_hc 	( uint l_hc )						{ return l_hc*2-1 				;};
+		static double 	fft_freq					( uint i , uint l_fft , double dt )	{ return ((double)i)/(dt*l_fft) ;};
+		static double 	compute_f_Nyquist			( double dt )						{ return 1.0/(2.0*dt) 			;};
+		static uint64_t compute_l_valid				( uint l_kernel, uint64_t l_data )	{ return l_data - l_kernel + 1 	;};
+		static uint64_t compute_l_full				( uint l_kernel, uint64_t l_data )	{ return l_kernel + l_data - 1 	;};
+		
+		static uint 	compute_n_kernels			(Multi_array<complex_d,2> betas)	{ return betas.get_n_j();};
+		static uint 	compute_n_kernels			(np_complex_d betas)				{ py::buffer_info buffer=betas.request();return buffer.shape[0];};
+		static uint 	compute_l_kernel			(Multi_array<complex_d,2> betas)	{ return compute_l_kernel_from_l_hc ( betas.get_n_i() );};
+		static uint 	compute_l_kernel			(np_complex_d betas)				{ py::buffer_info buffer=betas.request();return compute_l_kernel_from_l_hc (buffer.shape[1]) ;};
+		static uint 	compute_l_hc				(Multi_array<complex_d,2> betas)	{ return betas.get_n_i() ;};
+		static uint 	compute_l_hc				(np_complex_d betas)				{ py::buffer_info buffer=betas.request();return buffer.shape[1] ;};
+		static uint 	compute_n_quads				(uint kernel_conf) ;
+		
+		// Python utilities
+		static np_complex_d compute_flat_band(uint l_hc,double dt,double f_min_analogue,double _a,double f_Nyquist);
 		
 		//// C++ INTERFACE
 		void half_denormalization(); // Undoes half-normalize kernels
 		
 		template<class DataType>
-		void execute( DataType* data , uint64_t l_data );
+		void execute( Multi_array<DataType,1,uint64_t>& data );
 		
 		//// Python interface
 		template<class DataType>
-		void execute_py( py::array_t<DataType> data );
+		void execute_py( py::array_t<DataType, py::array::c_style>& np_data );
 		
 	private :
 		// Kernels info
-		uint l_kernel ;
-		uint n_kernels ;
-		double Z ; // 40.35143201333281 [Ohm]
+		double 									Z ; // 40.35143201333281 [Ohm]
+		double 									dt ; // 0.03125 [ns] 
+		uint 									l_kernel ;
+		uint64_t 								l_data ; //
+		uint 									kernel_conf ;
+		uint 									n_quads ;
 		
-		// Acquisition info
-		uint64_t l_data ; //
-		double dt ; // 0.03125 [ns] 
-		const double h = 6.62607004*pow(10.0,-25.0) ; // Plank's constant 6,62607004 × 10-25 m2 kg / ns
-		double prefactor ; // sqrt( 2/ Zh )
-		double compute_prefactor( double Z){ return sqrt( 2.0/ (Z*h) );} ;
-		double f_max_analogue  ; // 10 [GHz] 
-		double f_min_analogue  ; // 0.5 [GHz] 
-		double f_Nyquist ; //16 [GHz] = 1/(2*dt)
-		double t_max_analogue ; // 2 [ns] 1/f_min_analogue
+        // h units are chosen such that kernel conv voltage give out [V/Hz]**-1 
+		const double 							h 					= 6.62607004*pow(10.0,-25.0) ; // Plank's constant 6,62607004 × 10-25 J ns
+		const double 							units_correction 	= pow(10.0,-(9.0/2.0)) ; // See readme.md for documentation on units
+        double 									prefactor ; // sqrt( 2/ Zh )
+		double 									compute_prefactor( double Z ){ return units_correction*sqrt( 2.0/ (Z*h) );} ;
 		
 		// Quadratures info
-		uint64_t l_valid ;
-		uint64_t l_full  ;
+		uint64_t 								l_valid ;
+		uint64_t 								l_full  ;
 		
-		Multi_array<complex_d,2> filters ; 
-		Multi_array<double,2> windows ;
-		double alpha ;
-		int n_threads ;
+		Multi_array<complex_d,2> 				betas ; // Determine the linear combination of \hat{a}(f)
+		Multi_array<complex_d,1> 				g ; // half-complex 
+		Multi_array<complex_d,2> 				filters ; // Computed from betas and g
+		double 									alpha ;
+		uint 									n_kernels ;
+		int 									n_threads ;
 		
 		// Kernels
-		Multi_array<complex_d,2> ks_p_complex ; // Manages memory for ks_p
-		Multi_array<complex_d,2> ks_q_complex ;
-		Multi_array<double,2> ks_p ; // Uses memory managed by ks_p_complex
-		Multi_array<double,2> ks_q ;
-		Multi_array<double,1> half_norms_p ; 
-		Multi_array<double,1> half_norms_q ;
-		
+		Multi_array<complex_d,3> 				ks_complex ; // Manages memory for ks_p
+		Multi_array<double,3> 					ks ; // quadrature_index , mode/betas_index , freq_index // Uses memory managed by ks_p_complex
+		Multi_array<double,2> 					half_norms ; //  quadrature_index, mode/betas_index
 		// Quadratures
-		Multi_array<double,2,Quads_Index_Type> ps ; 
-		Multi_array<double,2,Quads_Index_Type> qs ;
+		Multi_array<double,3,Quads_Index_Type> 	quads ; // quadrature_index , mode/betas_index , time_index
 		
-		TimeQuad_algorithm* algorithm ;
+		TimeQuad_algorithm* 					algorithm ;
 		
-		fftw_plan k_foward ;
-		fftw_plan k_backward ;
+		fftw_plan 								k_foward ;
+		fftw_plan 								k_backward ;
 		
 		void init_gen();
 		void init_direct(); // Constructor calls this function
 		void init_fft( uint l_fft ); // Constructor calls this function
-		void init_fft_advanced( uint l_fft , uint howmany);
 		
 		// init sequence
 			void checks();
 			void checks_n_threads();
-			void checks_filters();
-			void checks_windows();
+			void checks_betas();
+			void checks_g();
 			void execution_checks( uint64_t l_data );
 			
 			void prepare_plans_kernels();
 			void make_kernels();
-			// void make_quadratures();
 		
 		// make_kernels sequence
+			void normalize_betas();
+				void normalize_a_beta(uint mode_index);
+		
 			void vanilla_kernels(); // Generates vanilla (analitical filter at Nyquist's frequency) k_p and k_q and outputs then in ks_p[0] and ks_q[0]
-			void normalize_for_ffts();
-			void copy_vanillas(); /* Copying vanilla Kernels to all other ks_p[i] and ks_q[i]*/
-			void apply_filters(); // Apply the list of n_kernels custom filters to all ks_p and ks_q
-			void apply_windows(); // Apply the list of n_kernels windows or the same window to every one.
-			void half_normalization(); // Calculates and half-normalize kernels
+				void vanilla_kp(uint quadrature_index, uint mode_index);
+				void vanilla_kq(uint quadrature_index, uint mode_index);
+				// void vanilla_k_pi_over_4();
+				// void vanilla_k_3_pi_over_4();
+			void normalize_for_dfts();
+			void apply_windows(); 
+			void compute_filters();
+			void apply_filters();
+			
+			void half_normalization();
 			
 		// Destructor sequence
 			void destroy_plans_kernels();
