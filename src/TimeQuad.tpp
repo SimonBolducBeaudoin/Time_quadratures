@@ -12,7 +12,7 @@
 #define INPUTS_2_fft 	double alpha , uint l_fft 	, int n_threads
 
 #define	INIT_LIST_PART1 \
-	Z(Z) , dt(dt) , l_kernel(compute_l_kernel(betas)) , l_data(l_data) , kernel_conf(kernel_conf) ,\
+	Z(Z) , dt(dt) , l_kernel(compute_l_kernel(betas)) , l_hc(compute_l_hc(betas)), l_data(l_data) , kernel_conf(kernel_conf) ,\
 	n_quads(compute_n_quads(kernel_conf)) , prefactor(compute_prefactor(Z)),\
 	l_valid( compute_l_valid( compute_l_kernel(betas) ,l_data ) ) , l_full( compute_l_full(  compute_l_kernel(betas) ,l_data ) )
 	
@@ -23,17 +23,17 @@
 	alpha(alpha) 
 
 #define BETAS_G_NUMPY_INITS \
-	betas( Multi_array<complex_d,2>::numpy(betas) ) , \
-	g( Multi_array<complex_d,1>::numpy(g) ) , \
+	betas( Multi_array<complex_d,2>::numpy_copy(betas) ) , \
+	g( Multi_array<complex_d,1>::numpy_copy(g) ) , \
 	filters( Multi_array<complex_d,2>(compute_n_kernels(betas),compute_l_hc(betas)) ),\
 	alpha( alpha )
 		
 #define	INIT_LIST_PART2 \
-	n_threads(n_threads),\
-	ks_complex( Multi_array<complex_d,3>( compute_n_quads(kernel_conf) , compute_n_kernels(betas) , compute_l_hc(betas) , fftw_malloc , fftw_free ) ) , \
-	ks( Multi_array<double,3>( (double*)ks_complex.get_ptr() , compute_n_quads(kernel_conf) , compute_n_kernels(betas) , compute_l_kernel(betas) , compute_l_hc(betas)*sizeof(complex_d) , sizeof(double) ) ),\
-	half_norms( Multi_array<double,2>( compute_n_quads(kernel_conf) , compute_n_kernels(betas) ) ),\
-	quads( Multi_array<double,3,Quads_Index_Type>( compute_n_quads(kernel_conf) , compute_n_kernels(betas) , l_full ) )
+	n_kernels(compute_n_kernels(betas)),n_threads(n_threads),\
+	ks_complex	( Multi_array<complex_d,3>				( compute_n_quads(kernel_conf) , compute_n_kernels(betas) , compute_l_hc(betas) , fftw_malloc , fftw_free ) ) ,\
+	ks			( Multi_array<double,3>					( (double*)ks_complex.get_ptr() , compute_n_quads(kernel_conf) , compute_n_kernels(betas) , compute_l_kernel(betas) , compute_n_kernels(betas)*compute_l_hc(betas)*sizeof(complex_d),compute_l_hc(betas)*sizeof(complex_d) , sizeof(double) ) ),\
+	half_norms	( Multi_array<double,2>					( compute_n_quads(kernel_conf) , compute_n_kernels(betas) ) ),\
+	quads		( Multi_array<double,3,Quads_Index_Type>( compute_n_quads(kernel_conf) , compute_n_kernels(betas) , l_full ) )
 
 /////////////////////////////////////////
 // Direct convolution constructors
@@ -100,10 +100,14 @@ uint TimeQuad<Quads_Index_Type>::compute_n_quads(uint kernel_conf)
 	{
 		return 1 ;
 	}
-	else if ((kernel_conf==1) || (kernel_conf==2))
+	else if (kernel_conf==1)
 	{
 		return 2 ;
 	}
+	// else if (kernel_conf==2)
+	// {
+		// return 2 ;
+	// }
 	else
 	{
 		throw std::runtime_error(" Invalid kernel_conf ");
@@ -111,13 +115,20 @@ uint TimeQuad<Quads_Index_Type>::compute_n_quads(uint kernel_conf)
 }
 
 template<class Quads_Index_Type>
-np_complex_d TimeQuad<Quads_Index_Type>::compute_flat_band(uint l_hc,double dt,double f_min_analogue,double f_max_analogue,double f_Nyquist)
+np_complex_d TimeQuad<Quads_Index_Type>::compute_flat_band(uint l_hc,double dt,double f_min_analogue_start,double f_min_analogue_stop,double f_max_analogue_start,double f_max_analogue_stop)
 {
+	double f_Nyquist = compute_f_Nyquist( dt );
 	double f[l_hc];
-	uint l_kernel = 2*l_hc - 1 ;
-	for ( uint i = 0 ; i<l_hc  ; i++ ){ f[i] = fft_freq( i , l_kernel , dt ); };
+	uint l_kernel = compute_l_kernel_from_l_hc 	( l_hc );
 	Multi_array<complex_d,1> filter (l_hc);
-	Tukey_modifed_Window( filter.get_ptr() , f , l_hc , f_min_analogue , f_max_analogue , f_Nyquist ) ;
+    
+    for ( uint i = 0 ; i<l_hc  ; i++ )
+    { 
+        f[i] = fft_freq( i , l_kernel , dt );
+        filter[i] = 1.0;
+    };
+    
+	Tukey_Window( filter.get_ptr() , f , l_hc , f_min_analogue_start, f_min_analogue_stop, f_max_analogue_start, f_max_analogue_stop , f_Nyquist ) ;
 	
 	return filter.copy_py() ;
 }
@@ -139,7 +150,7 @@ void TimeQuad<Quads_Index_Type>::checks()
 template<class Quads_Index_Type>
 void TimeQuad<Quads_Index_Type>::checks_betas()
 {
-	if( (betas.get_n_i() != compute_l_hc_from_l_kernel(l_kernel)) )
+	if( (betas.get_n_i() != l_hc) )
 	{
 		throw std::runtime_error(" length of betas not mathching with length of kernels ");
 	}
@@ -148,7 +159,7 @@ void TimeQuad<Quads_Index_Type>::checks_betas()
 template<class Quads_Index_Type>
 void TimeQuad<Quads_Index_Type>::checks_g()
 {
-	if( (betas.get_ptr() != NULL) and (g.get_n_i() != compute_l_hc_from_l_kernel(l_kernel)) )
+	if( (betas.get_ptr() != NULL) and (g.get_n_i() != l_hc) )
 	{
 		throw std::runtime_error(" length of g not mathching with length of kernels ");
 	}
@@ -220,7 +231,7 @@ template<class Quads_Index_Type>
 void TimeQuad<Quads_Index_Type>::make_kernels()
 {
 	normalize_betas(); /* Can be done first because only depend on betas */
-	
+    
 	vanilla_kernels();
 	normalize_for_dfts(); 
 	apply_windows();
@@ -228,6 +239,34 @@ void TimeQuad<Quads_Index_Type>::make_kernels()
 	apply_filters();
 	
     half_normalization();
+}
+
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::set_g( Multi_array<complex_d,1> g)
+{
+    if(  g.get_n_i() != this->g.get_n_i() )
+	{
+		throw std::runtime_error(" length of the new g doensn't match the old one");
+	}
+    
+    for (uint i = 0 ; i < l_hc ; i++ )
+	{
+        this->g[i] = g[i] ;
+    }
+    
+	vanilla_kernels();
+	normalize_for_dfts(); 
+	apply_windows();
+	compute_filters();
+	apply_filters();
+	
+    half_normalization();
+}
+
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::set_g_py(np_complex_d g)
+{
+	set_g( Multi_array<complex_d,1>::numpy_copy(g) ) ;
 }
 
 template<class Quads_Index_Type>
@@ -249,9 +288,9 @@ void TimeQuad<Quads_Index_Type>::vanilla_kp(uint quadrature_index, uint mode_ind
 		/* Right part */
 		tmp1 = prefact * Fresnel_Cosine_Integral( argument ) ;
 		
-		ks( k , j , l_kernel/2 + 1 + i ) = tmp1;
+		ks( k , j , l_hc + i ) = tmp1;
 		/* Left part */
-		ks( k , j , l_kernel/2 - 1 - i ) = tmp1;
+		ks( k , j , l_hc - 2 - i ) = tmp1;
 	}
 	/* In zero */
 	ks( k , j , l_kernel/2 ) = 2.0*sqrt(2.0)/sqrt(dt);
@@ -281,12 +320,76 @@ void TimeQuad<Quads_Index_Type>::vanilla_kq(uint quadrature_index, uint mode_ind
 		/* Right part */
 		tmp1 = prefact * Fresnel_Sine_Integral( argument ) ;
 		
-		ks( k , j , l_kernel/2 + 1 + i ) = tmp1;
+		ks( k , j , l_hc + i ) = tmp1;
 		/* Left part */
-		ks( k , j , l_kernel/2 - 1 - i ) = (-1)*tmp1;
+		ks( k , j , l_hc - 2 - i ) = (-1)*tmp1;
 	}
 	/* In zero */
 	ks( k , j , l_kernel/2 ) = 0 ;
+    
+    for (uint i = 0 ; i < l_kernel; i++ )
+    {
+        ks( k , j , i ) *= prefactor ; /* units_correction * sqrt( 2/ Zh ) */
+    }
+}
+
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::vanilla_k_pi_over_4(uint quadrature_index, uint mode_index)
+{
+	double t ; 	/* Abscisse positif */
+	double prefact ;
+	double argument ;
+	double tmp1;
+	
+	uint k = quadrature_index;
+	uint j = mode_index;
+	
+	for (uint i = 0 ; i < l_kernel/2; i++ ) // l_kernel doit être impaire
+	{
+		t = ( i + 1 )*dt;
+		prefact = 2.0/sqrt(t);
+		argument = sqrt( 2.0*t/dt );
+		/* Right part */
+		tmp1 = prefact * Fresnel_Cosine_Integral( argument ) ;
+		
+		ks( k , j , l_hc + i ) = tmp1;
+		/* Left part */
+		ks( k , j , l_hc - 2 - i ) = 0.0 ; /* LEFT PART IS ZERO */
+	}
+	/* In zero */
+	ks( k , j , l_kernel/2 ) = sqrt(2.0)/sqrt(dt); /* THE VALUES IN 0 IS HALF OF KP  VOIR NOTE SV REGULARISATION */
+    
+    for (uint i = 0 ; i < l_kernel; i++ )
+    {
+        ks( k , j , i ) *= prefactor ; /* units_correction * sqrt( 2/ Zh ) */
+    }
+}
+
+template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::vanilla_k_3_pi_over_4(uint quadrature_index, uint mode_index)
+{
+	double t ; 	/* Abscisse positif */
+	double prefact ;
+	double argument ;
+	double tmp1;
+	
+	uint k = quadrature_index;
+	uint j = mode_index;
+	
+	for (uint i = 0 ; i < l_kernel/2; i++ ) // l_kernel doit être impaire
+	{
+		t = ( i + 1 )*dt;
+		prefact = 2.0/sqrt(t);
+		argument = sqrt( 2.0*t/dt );
+		/* Right part */
+		tmp1 = prefact * Fresnel_Cosine_Integral( argument ) ;
+		
+		ks( k , j , l_hc + i ) = 0.0; /* RIGHT PART IS ZERO */
+		/* Left part */
+		ks( k , j , l_hc - 2 - i ) = tmp1 ; /* RIGHT PART IS ZERO */
+	}
+	/* In zero */
+	ks( k , j , l_kernel/2 ) = sqrt(2.0)/sqrt(dt); /* THE VALUES IN 0 IS HALF OF KP VOIR NOTE SV REGULARISATION */
     
     for (uint i = 0 ; i < l_kernel; i++ )
     {
@@ -309,7 +412,7 @@ void TimeQuad<Quads_Index_Type>::vanilla_kernels()
 		for ( uint i = 0 ; i<n_kernels ; i++ ) 
 		{	
 			vanilla_kp(0,i); //quadrature_index , mode_index
-			vanilla_kq(0,i); //quadrature_index , mode_index
+			vanilla_kq(1,i); //quadrature_index , mode_index
 		} 
 	}
 	// else if ((kernel_conf==2)
@@ -345,10 +448,9 @@ void TimeQuad<Quads_Index_Type>::normalize_for_dfts()
 template<class Quads_Index_Type>
 void TimeQuad<Quads_Index_Type>::compute_filters()
 {
-	uint 	l_f 	= compute_l_hc_from_l_kernel( l_kernel ) ;
 	for ( uint j = 0 ; j<n_kernels ; j++ ) 
 	{
-		for ( uint i = 0 ; i<l_f ; i++ )
+		for ( uint i = 0 ; i<l_hc ; i++ )
 		{
 			filters(j,i) = ( betas(j,i)/g(i) ) ;
 		}
@@ -358,7 +460,6 @@ void TimeQuad<Quads_Index_Type>::compute_filters()
 template<class Quads_Index_Type>
 void TimeQuad<Quads_Index_Type>::apply_filters()
 {	
-	uint 	l_f 	= compute_l_hc_from_l_kernel( l_kernel ) ;
 	
 	/* Foward transforms */
 	for ( uint k = 0 ; k<n_quads ; k++ )
@@ -373,7 +474,7 @@ void TimeQuad<Quads_Index_Type>::apply_filters()
 	{
 		for ( uint j = 0 ; j<n_kernels ; j++ ) 
 		{
-			for ( uint i = 0 ; i<l_f ; i++ )
+			for ( uint i = 0 ; i<l_hc ; i++ )
 			{
 				ks_complex(k,j,i) *= filters(j,i) ;
 			}
@@ -403,17 +504,16 @@ template<class Quads_Index_Type>
 void TimeQuad<Quads_Index_Type>::normalize_a_beta(uint mode_index)
 {
 	uint j = mode_index;
-	
 	double sum = 0 ;
-	
-	for ( uint i = 0 ; i<l_kernel ; i++ )
+    double df = fft_freq(1,l_kernel,dt);
+	for ( uint i = 0 ; i<l_hc ; i++ )
 	{
 		sum += std::norm(betas(j,i));
 	}
-	sum *= dt ; 
-	sum = sqrt(sum);
-	
-	for ( uint i = 0 ; i<l_kernel ; i++ )
+    
+	sum *= df ; 
+	sum = sqrt(2.0)*sqrt(sum);
+	for ( uint i = 0 ; i<l_hc ; i++ )
 	{
 		betas(j,i) /= sum ;
 	}
@@ -481,7 +581,7 @@ template<class Quads_Index_Type>
 template<class DataType>
 void TimeQuad<Quads_Index_Type>::execute_py( py::array_t<DataType, py::array::c_style>& np_data )
 {
-	Multi_array<DataType,1,uint64_t> data = Multi_array<DataType,1,uint64_t>::numpy(np_data) ;
+	Multi_array<DataType,1,uint64_t> data = Multi_array<DataType,1,uint64_t>::numpy_share(np_data) ;
 	execute( data );
 }
 

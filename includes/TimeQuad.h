@@ -16,7 +16,11 @@ typedef unsigned int uint ;
 typedef std::complex<double> complex_d;
 /*
 	TODOS
-	- Find a way to automatically normalized the result of the convolution product ..?
+    - Add an options to toggle on or off the half_normalization
+        Since the betas are now normalized Idk if half_normalization is necessary any more
+    - The logic to build the betas,filter,g and kernels should be in a class of it own
+        This class should manage the logic for the virtual clases and
+        the construction ect..?
 */
 
 
@@ -62,7 +66,7 @@ class TimeQuad
 		~TimeQuad();
 		
 		// Python getters
-		np_double 		get_ks()			{ return ks.share_py() 			;};
+		np_double 		get_ks()			{ return ks.copy_py() ;};
 		np_complex_d 	get_betas()			{ return betas.copy_py() 		;};
 		np_complex_d 	get_g()				{ return g.copy_py() 			;};
 		np_complex_d 	get_filters()		{ return filters.copy_py() 		;};
@@ -70,7 +74,7 @@ class TimeQuad
 		np_double 		get_half_norms()	{ return half_norms.copy_py() 	;};
 		
 			// Returns only the valid part of the convolution
-		np_double 		get_quads();
+		np_double 		get_quads(); // Data are shared
 		
 		// Utilities
 		static uint 	compute_l_hc_from_l_kernel	( uint l_kernel )					{ return l_kernel/2+1 			;};
@@ -89,15 +93,18 @@ class TimeQuad
 		static uint 	compute_n_quads				(uint kernel_conf) ;
 		
 		// Python utilities
-		static np_complex_d compute_flat_band(uint l_hc,double dt,double f_min_analogue,double _a,double f_Nyquist);
+		static np_complex_d compute_flat_band   (uint l_hc,double dt,double f_min_analogue_start,double f_min_analogue_stop,double f_max_analogue_start,double f_max_analogue_stop );
 		
+        
 		//// C++ INTERFACE
 		void half_denormalization(); // Undoes half-normalize kernels
+        void set_g (Multi_array<complex_d,1> g);
 		
 		template<class DataType>
 		void execute( Multi_array<DataType,1,uint64_t>& data );
 		
 		//// Python interface
+        void set_g_py (np_complex_d g);
 		template<class DataType>
 		void execute_py( py::array_t<DataType, py::array::c_style>& np_data );
 		
@@ -106,6 +113,7 @@ class TimeQuad
 		double 									Z ; // 40.35143201333281 [Ohm]
 		double 									dt ; // 0.03125 [ns] 
 		uint 									l_kernel ;
+		uint 									l_hc ;
 		uint64_t 								l_data ; //
 		uint 									kernel_conf ;
 		uint 									n_quads ;
@@ -160,8 +168,8 @@ class TimeQuad
 			void vanilla_kernels(); // Generates vanilla (analitical filter at Nyquist's frequency) k_p and k_q and outputs then in ks_p[0] and ks_q[0]
 				void vanilla_kp(uint quadrature_index, uint mode_index);
 				void vanilla_kq(uint quadrature_index, uint mode_index);
-				// void vanilla_k_pi_over_4();
-				// void vanilla_k_3_pi_over_4();
+				void vanilla_k_pi_over_4(uint quadrature_index, uint mode_index);
+				void vanilla_k_3_pi_over_4(uint quadrature_index, uint mode_index);
 			void normalize_for_dfts();
 			void apply_windows(); 
 			void compute_filters();

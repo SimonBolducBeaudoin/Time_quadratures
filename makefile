@@ -1,7 +1,7 @@
 NAME = time_quadratures
 PYLIB_EXT = $(if $(filter $(OS),Windows_NT),.pyd,.so)
 TARGET_STATIC = lib$(NAME).a
-TARGET_PYLIB = ../Python/$(NAME)$(PYLIB_EXT)
+TARGET_PYLIB = ../../Python_2_7/lib/$(NAME)$(PYLIB_EXT)
 
 MULTI_ARRAY = ../Multi_array
 OMP_EXTRA = ../Omp_extra
