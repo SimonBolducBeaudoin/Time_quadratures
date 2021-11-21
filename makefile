@@ -1,11 +1,10 @@
 NAME = time_quadratures
 PYLIB_EXT = $(if $(filter $(OS),Windows_NT),.pyd,.so)
 TARGET_STATIC = lib$(NAME).a
-TARGET_PYLIB = ../Python/$(NAME)$(PYLIB_EXT)
+TARGET_PYLIB = bin/$(NAME)$(PYLIB_EXT)
 
 MULTI_ARRAY = ../Multi_array
 OMP_EXTRA = ../Omp_extra
-INTERPOLATION = ../Interpolation
 SCOPED_TIMER = ../Scoped_timer
 WINDOWING = ../Windowing
 SPECIAL_FUNC = ../Special_functions
@@ -13,7 +12,6 @@ NUMERICAL_INT = ../Numerical_integration
 TIME_QUAD = ../Time_quadratures
 LIBS = ../libs
 
-IDIR = includes
 ODIR = obj
 LDIR = lib
 SDIR = src
@@ -24,9 +22,9 @@ SPECIAL_FUNC_OBJ = $(wildcard $(SPECIAL_FUNC)/*$(ODIR)/*.o)
 NUMERICAL_INT_OBJ = $(wildcard $(NUMERICAL_INT)/*$(ODIR)/*.o)
 
 EXTERNAL_OBJ = $(OMP_EXTRA_OBJ) $(WINDOWING_OBJ) $(SPECIAL_FUNC_OBJ) $(NUMERICAL_INT_OBJ)
-EXTERNAL_INCLUDES = -I$(MULTI_ARRAY)/$(IDIR) -I$(OMP_EXTRA)/$(IDIR) -I$(WINDOWING)/$(IDIR) \
-					-I$(NUMERICAL_INT)/$(IDIR) -I$(SPECIAL_FUNC)/$(IDIR) \
-					-I$(TIME_QUAD)/$(IDIR) -I$(SCOPED_TIMER)/$(IDIR) 
+EXTERNAL_INCLUDES = -I$(MULTI_ARRAY)/$(SDIR) -I$(OMP_EXTRA)/$(SDIR) -I$(WINDOWING)/$(SDIR) \
+					-I$(NUMERICAL_INT)/$(SDIR) -I$(SPECIAL_FUNC)/$(SDIR) \
+					-I$(TIME_QUAD)/$(SDIR) -I$(SCOPED_TIMER)/$(SDIR) 
 
 SRC  = $(wildcard $(SDIR)/*.cpp)
 OBJ  = $(patsubst $(SDIR)/%.cpp,$(ODIR)/%.o,$(SRC))

@@ -1,4 +1,4 @@
-#include "../includes/python_submodule.h"
+#include "python_submodule.h"
 
 //Python Binding and Time_Quad class instances.
 PYBIND11_MODULE(time_quadratures, m)
