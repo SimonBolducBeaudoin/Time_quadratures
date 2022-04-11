@@ -96,18 +96,22 @@ TimeQuad<Quads_Index_Type>::~TimeQuad()
 template<class Quads_Index_Type>
 uint TimeQuad<Quads_Index_Type>::compute_n_quads(uint kernel_conf)
 {
-	if(kernel_conf==0)
+	if(kernel_conf==0) // q seulement
 	{
 		return 1 ;
 	}
-	else if (kernel_conf==1)
+	else if (kernel_conf==1) // p et q 
 	{
 		return 2 ;
 	}
-	// else if (kernel_conf==2)
+	// else if (kernel_conf==2)  // pi/4 et 3pi/4
 	// {
 		// return 2 ;
 	// }
+	else if (kernel_conf==3) // Pas de kernel (i.e. ones )
+	{
+		return 1 ;
+	}
 	else
 	{
 		throw std::runtime_error(" Invalid kernel_conf ");
@@ -304,6 +308,18 @@ void TimeQuad<Quads_Index_Type>::vanilla_kp(uint quadrature_index, uint mode_ind
 }
 
 template<class Quads_Index_Type>
+void TimeQuad<Quads_Index_Type>::ones(uint quadrature_index, uint mode_index)
+{	
+	uint k = quadrature_index;
+	uint j = mode_index;
+    
+    for (uint i = 0 ; i < l_kernel; i++ )
+    {
+        ks( k , j , i ) = 1.0*units_correction  ;
+    }
+}
+
+template<class Quads_Index_Type>
 void TimeQuad<Quads_Index_Type>::vanilla_kq(uint quadrature_index, uint mode_index)
 {
 	double t ; 	/* Abscisse positif */
@@ -425,6 +441,13 @@ void TimeQuad<Quads_Index_Type>::vanilla_kernels()
 			// vanilla_k_3_pi_over_4(0,i); //quadrature_index , mode_index
 		// }
 	// }
+	else if(kernel_conf==3)
+	{
+		for ( uint i = 0 ; i<n_kernels ; i++ ) 
+		{	
+			ones(0,i); //quadrature_index , mode_index
+		} 
+	}
 	else
 	{
 		throw std::runtime_error(" Invalid kernel_conf ");
@@ -505,6 +528,11 @@ void TimeQuad<Quads_Index_Type>::normalize_betas()
 template<class Quads_Index_Type>
 void TimeQuad<Quads_Index_Type>::normalize_a_beta(uint mode_index)
 {
+	/*	Normalized to 1/2 :
+						 beta(f)
+	Beta(f)	=	---------------------------
+			   ( 2 int |beta(f)|^2 df )^1/2
+	*/
 	uint j = mode_index;
 	double sum = 0 ;
     double df = fft_freq(1,l_kernel,dt);
