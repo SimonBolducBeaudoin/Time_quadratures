@@ -6,8 +6,6 @@
 
 #include <Multi_array.h>
 
-#include <TimeQuad_algorithm.h>
-#include <TimeQuad_direct.h>
 #include <TimeQuad_FFT.h>
 #include <cmath>
 
@@ -36,19 +34,6 @@ class TimeQuad
 {
 	public :
 		// Contructors
-		/* Direct convolution */
-		TimeQuad
-		( 
-			double Z , double dt , uint64_t l_data , uint kernel_conf , 
-			Multi_array<complex_d,2> betas , Multi_array<complex_d,1> g ,
-			double alpha , int n_threads
-		);
-		TimeQuad
-		( 
-			double Z , double dt , uint64_t l_data , uint kernel_conf , 
-			np_complex_d betas , np_complex_d g ,
-			double alpha , int n_threads
-		); /* numpy array*/
 		/* FFT convolution */
 		TimeQuad
 		( 
@@ -148,13 +133,12 @@ class TimeQuad
 		// Quadratures
 		Multi_array<double,3,Quads_Index_Type> 	quads ; // quadrature_index , mode/betas_index , time_index
 		
-		TimeQuad_algorithm* 					algorithm ;
+		TimeQuad_FFT<Quads_Index_Type>* 		algorithm ;
 		
 		fftw_plan 								k_foward ;
 		fftw_plan 								k_backward ;
 		
 		void init_gen();
-		void init_direct(); // Constructor calls this function
 		void init_fft( uint l_fft ); // Constructor calls this function
 		
 		// init sequence

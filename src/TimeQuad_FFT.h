@@ -11,7 +11,6 @@ using namespace pybind11::literals;
 #include <special_functions.h>
 #include <Windowing.h>
 #include <Multi_array.h>
-#include <TimeQuad_algorithm.h>
 
 #include <fftw3.h>
 
@@ -20,7 +19,7 @@ typedef py::array_t<double,py::array::c_style> np_double;
 typedef py::array_t<complex_d,py::array::c_style> np_complex_d;
 
 template<class Quads_Index_Type=uint>
-class TimeQuad_FFT: public TimeQuad_algorithm
+class TimeQuad_FFT
 {
 	public :
 	// Contructor
@@ -33,10 +32,10 @@ class TimeQuad_FFT: public TimeQuad_algorithm
 		int n_threads 
 	);
 	// Destructor
-	~TimeQuad_FFT() override;
+	~TimeQuad_FFT();
 	
 	# define EXECUTE(DataType) \
-		void execute( Multi_array<DataType,1,uint64_t>& data ) override ;	
+		void execute( Multi_array<DataType,1,uint64_t>& data );	
 	
 	EXECUTE(int16_t)
 							

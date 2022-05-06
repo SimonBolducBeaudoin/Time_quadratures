@@ -7,8 +7,6 @@
 
 #define INPUTS_1_python np_complex_d betas , np_complex_d g
 
-#define INPUTS_2_direct double alpha 				, int n_threads
-
 #define INPUTS_2_fft 	double alpha , uint l_fft 	, int n_threads
 
 #define	INIT_LIST_PART1 \
@@ -34,28 +32,6 @@
 	ks			( Multi_array<double,3>					( (double*)ks_complex.get_ptr() , compute_n_quads(kernel_conf) , compute_n_kernels(betas) , compute_l_kernel(betas) , compute_n_kernels(betas)*compute_l_hc(betas)*sizeof(complex_d),compute_l_hc(betas)*sizeof(complex_d) , sizeof(double) ) ),\
 	half_norms	( Multi_array<double,2>					( compute_n_quads(kernel_conf) , compute_n_kernels(betas) ) ),\
 	quads		( Multi_array<double,3,Quads_Index_Type>( compute_n_quads(kernel_conf) , compute_n_kernels(betas) , l_full ) )
-
-/////////////////////////////////////////
-// Direct convolution constructors
-template<class Quads_Index_Type>
-TimeQuad<Quads_Index_Type>::TimeQuad( INPUTS_0 , INPUTS_1_cpp , INPUTS_2_direct )
-: 	
-	INIT_LIST_PART1 , 
-	BETAS_G_INITS , 
-	INIT_LIST_PART2
-{ 
-	init_direct(); 
-};
-
-template<class Quads_Index_Type>
-TimeQuad<Quads_Index_Type>::TimeQuad( INPUTS_0 , INPUTS_1_python , INPUTS_2_direct )
-: 
-	INIT_LIST_PART1 , 
-	BETAS_G_NUMPY_INITS , 
-	INIT_LIST_PART2
-{ 
-	init_direct(); 
-};
 	
 /////////////////////////////////////////
 // FFT convolutionc constructors
@@ -88,7 +64,6 @@ TimeQuad<Quads_Index_Type>::~TimeQuad()
 	/* 
 	delete algorithm object
 	*/
-	
 	delete algorithm;
 }
 
@@ -207,17 +182,6 @@ void TimeQuad<Quads_Index_Type>::init_gen()
 		
 	prepare_plans_kernels();
 	make_kernels();
-}
-
-template<class Quads_Index_Type>
-void TimeQuad<Quads_Index_Type>::init_direct()
-{
-	init_gen();
-	
-	TimeQuad_direct<Quads_Index_Type>* tmp = new TimeQuad_direct<Quads_Index_Type>	
-		( ks , quads , dt , n_threads  );
-		
-	algorithm =  tmp ;
 }
 
 template<class Quads_Index_Type>
@@ -639,7 +603,6 @@ np_double TimeQuad<Quads_Index_Type>::get_quads()
 #undef INPUTS_0 
 #undef INPUTS_1_cpp 
 #undef INPUTS_1_python 
-#undef INPUTS_2_direct
 #undef INPUTS_2_fft
 #undef BETAS_G_INITS
 #undef BETAS_G_NUMPY_INITS
