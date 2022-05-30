@@ -1,5 +1,6 @@
 # Time_quadratures-OTF
 
+
 The Time_quadratures-OTF library is to do fast convolution calculation (on-the-fly) on discrete voltage measurement in order to calculate time domain quadratures p(t) and q(t). Therefore kernels for the convolutions are fixed (see : Unidimensional time-domain quantum optics, Physical Review A 100, 023822 (2019)). 
  
 The library is written in C++ and is using Pybin11 to provide a python interface.
@@ -10,12 +11,12 @@ $$
 	=
 	\underbrace
 	{
-		k_\Theta(t) \conv \beta(t) \conv g^{-1}(t)
+		k_\Theta(t) \circledast \beta(t) \circledast g^{-1}(t)
 	}_\text{numerical}
-	\conv
+	\circledast
 	\underbrace
 	{ 
-		g(t) \conv v_m(t) 
+		g(t) \circledast v_m(t) 
 	}_\text{physical}
 $$
 
@@ -24,19 +25,19 @@ $$
 	=
 	\underbrace
 	{
-		k_\Theta(t) \conv \beta(t) 
+		k_\Theta(t) \circledast \beta(t) 
 	}_\text{Base}
-	\conv
+	\circledast
 	\underbrace
 	{ 
-		g^{-1}(t) \conv g(t) \conv v(t) 
+		g^{-1}(t) \circledast g(t) \circledast v(t) 
 	}_\text{gain compensation}
 $$
 
 $$
 	x_{\text{in}+\delta,\Theta}(t)
 	\approx
-	\Delta t \iDFT\left\{ \frac{ \beta(f) }{ g(f) } \DFT[k_\Theta(t)] \DFT\{v_m(t)\}   \right\}
+	\Delta t \mathcal{DFT}^{-1}\left\{ \frac{ \beta(f) }{ g(f) } \mathcal{DFT}[k_\Theta(t)] \mathcal{DFT}\{v_m(t)\}   \right\}
 $$
 
 Which is a valid computation for a time quadrature of base $\beta(t)$ for state that dont posses 
@@ -49,19 +50,19 @@ Kernels are computed by the class and are of the form :
 	- $k_{3\pi/4}(t) = \text{Heaviside}(-t)\sqrt{ \frac{2}{Zh}} \frac{1}{|t|}$
 
 Units :
-	- h : is a private const =  6,62607004 × 10-25 [J ns] ;
-	- Z [Ohm] ;
+	- $h$ : is a private const =  6,62607004 × 10-25 [J ns] ;
+	- $Z$ [Ohm] ;
 	- Time variables t and $\Delta t$ are in [ns]: 
 	- Kernels have units of (V^2/Hz)^-1/2 * ns^-1 :
 		- The  ns^-1 are canceled in integration since $\Delta t$ is in [ns]
-	- V [Volt] ;
-	- g(f) unitless : We assume that the user as preemtively measured the gain of the system
-	- \beta(f) [GHz^-1/2]
-	- x [] : the output quadrature has no units
+	- $V$ [Volt] ;
+	- $g(f)$ unitless : We assume that the user as preemtively measured the gain of the system
+	- $\beta(f)$ [GHz^-1/2]
+	- $x$ [] : the output quadrature has no units
 	
 Distinction between DFT's and Fourier transforms :
 	g(f) and beta(f) are Fourier transform and not DFT's
-	Recall that the Fourier transform can be approximated by $\Delta * \DFT[x_i]$
+	Recall that the Fourier transform can be approximated by $\Delta * \mathcal{DFT}[x_i]$
 	
 Choice of mode :
 	Reccal that $\int |\beta(f)|^2 df =1$ for the definition of a mode to be properly normalized
@@ -87,7 +88,7 @@ The class is structured in the following way :
 			- 1 : p(t) and q(t) will be calculated
 				$k_0(t) = \sqrt{ \frac{2}{Zh}} \frac{1}{|t|}$
 				$k_{\pi/2}(t) = \sqrt{ \frac{2}{Zh}} \frac{\text{signum}(t)}{|t|}$
-			- 2 (not implemented yet) : x_{\pi/4}(t) and x_{3\pi/4}(t) will be calculated
+			- 2 (not implemented yet) : $x_{\pi/4}(t)$ and $x_{3\pi/4}(t)$ will be calculated
 				$k_{\pi/4}(t) = \text{Heaviside}(t)\sqrt{ \frac{2}{Zh}} \frac{1}{|t|}$
 				$k_{3\pi/4}(t) = \text{Heaviside}(-t)\sqrt{ \frac{2}{Zh}} \frac{1}{|t|}$				
 		- filters(j,i) 	: 2D array of filters (beta(f)) that are defining the modes
