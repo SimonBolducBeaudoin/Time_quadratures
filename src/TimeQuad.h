@@ -156,7 +156,7 @@ class TimeQuad
 				void normalize_a_beta(uint mode_index);
 		
 			void vanilla_kernels(); // Generates vanilla (analitical filter at Nyquist's frequency) k_p and k_q and outputs then in ks_p[0] and ks_q[0]
-				void ones(uint quadrature_index, uint mode_index);
+				void delta(uint quadrature_index, uint mode_index);
 				void vanilla_kp(uint quadrature_index, uint mode_index);
 				void vanilla_kq(uint quadrature_index, uint mode_index);
 				void vanilla_k_pi_over_4(uint quadrature_index, uint mode_index);

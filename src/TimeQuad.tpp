@@ -272,15 +272,18 @@ void TimeQuad<Quads_Index_Type>::vanilla_kp(uint quadrature_index, uint mode_ind
 }
 
 template<class Quads_Index_Type>
-void TimeQuad<Quads_Index_Type>::ones(uint quadrature_index, uint mode_index)
+void TimeQuad<Quads_Index_Type>::delta(uint quadrature_index, uint mode_index)
 {	
 	uint k = quadrature_index;
 	uint j = mode_index;
     
     for (uint i = 0 ; i < l_kernel; i++ )
     {
-        ks( k , j , i ) = 1.0*units_correction  ;
+        ks( k , j , i ) = 0.0  ;
     }
+	
+	/* In zero */
+	ks( k , j , l_kernel/2 ) = units_correction/dt ;
 }
 
 template<class Quads_Index_Type>
@@ -409,7 +412,7 @@ void TimeQuad<Quads_Index_Type>::vanilla_kernels()
 	{
 		for ( uint i = 0 ; i<n_kernels ; i++ ) 
 		{	
-			ones(0,i); //quadrature_index , mode_index
+			delta(0,i); //quadrature_index , mode_index
 		} 
 	}
 	else
@@ -421,6 +424,10 @@ void TimeQuad<Quads_Index_Type>::vanilla_kernels()
 template<class Quads_Index_Type>
 void TimeQuad<Quads_Index_Type>::normalize_for_dfts()
 {	
+	/*
+	This is the normalisation relative to the filtering occuring in the construction of ther Kernel 
+	(as nothing to do with the convolution product happening afterward in TimeQuad_FFT)
+	*/
 	double fft_norm = 1.0/l_kernel ; // Normalization for FFT's
 	for ( uint k = 0 ; k<n_quads ; k++ )
 	{

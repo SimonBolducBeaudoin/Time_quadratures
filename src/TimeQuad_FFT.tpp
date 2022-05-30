@@ -86,7 +86,7 @@ void TimeQuad_FFT<Quads_Index_Type>::execute( Multi_array<int16_t,1,uint64_t>& d
 	uint n_chunks 	=	compute_n_chunks	(l_data,l_chunk);
 	uint l_reste 	=	compute_l_reste		(l_data,l_chunk);
 
-    double norm_factor = dt/l_fft;
+    double norm_factor = dt/l_fft; /*THIS SHOULD BE MOVED IN PREPARE_KERNELS*/
     /////////////////////
     // RESET PS AND QS //
     /////////////////////
