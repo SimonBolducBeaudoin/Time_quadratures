@@ -60,7 +60,8 @@ void TimeQuad_FFT<Quads_Index_Type>::destroy_plans()
 template<class Quads_Index_Type>
 void TimeQuad_FFT<Quads_Index_Type>::prepare_kernels()
 {
-	/*Could be parallelized*/
+	double norm_factor = dt/l_fft; /*MOVED IN PREPARE_KERNELS*/
+
 	for ( uint k = 0 ; k<n_quads ; k++ ) 
 	{
 		for ( uint j = 0 ; j<n_kernels ; j++ ) 
@@ -68,7 +69,7 @@ void TimeQuad_FFT<Quads_Index_Type>::prepare_kernels()
 			/* Value assignment and zero padding */
 			for( uint i = 0 ; i < l_kernel ; i++)
 			{
-				( (double*)ks_complex(k,j) )[i] = ks(k,j,i) ; 
+				( (double*)ks_complex(k,j) )[i] = ks(k,j,i)*norm_factor ; /*Normalisation done here*/
 			}
 			for(uint i = l_kernel ; i < l_fft ; i++)
 			{
@@ -86,7 +87,6 @@ void TimeQuad_FFT<Quads_Index_Type>::execute( Multi_array<int16_t,1,uint64_t>& d
 	uint n_chunks 	=	compute_n_chunks	(l_data,l_chunk);
 	uint l_reste 	=	compute_l_reste		(l_data,l_chunk);
 
-    double norm_factor = dt/l_fft; /*THIS SHOULD BE MOVED IN PREPARE_KERNELS*/
     /////////////////////
     // RESET PS AND QS //
     /////////////////////
@@ -188,20 +188,20 @@ void TimeQuad_FFT<Quads_Index_Type>::execute( Multi_array<int16_t,1,uint64_t>& d
 					for( uint k=0; k < l_kernel-1 ; k++ )
 					{
 						#pragma omp atomic update
-						quads(l,j,i*l_chunk+k) += ( (double*)hs(l,j,this_thread))[k] * norm_factor ;
+						quads(l,j,i*l_chunk+k) += ( (double*)hs(l,j,this_thread))[k] ;
 					}
 					// Copy result to p and q 
 					// Not subject to race conditions
 					for( uint k=l_kernel-1; k < l_chunk ; k++ )
 					{	
-						quads(l,j,i*l_chunk+k) = ( (double*)hs(l,j,this_thread))[k] * norm_factor ;
+						quads(l,j,i*l_chunk+k) = ( (double*)hs(l,j,this_thread))[k] ;
 					}
 					// Last l_kernel-1.0 points
 					// Subject to race conditions
 					for( uint k=l_chunk ; k < l_fft ; k++ )
 					{
 						#pragma omp atomic update
-						quads(l,j,i*l_chunk+k) += ( (double*)hs(l,j,this_thread))[k] * norm_factor ;
+						quads(l,j,i*l_chunk+k) += ( (double*)hs(l,j,this_thread))[k] ;
 					}
 				}
 			}
@@ -241,7 +241,7 @@ void TimeQuad_FFT<Quads_Index_Type>::execute( Multi_array<int16_t,1,uint64_t>& d
 				// Select only the part of the ifft that contributes to the full output length
 				for( uint k = 0 ; k < l_reste + l_kernel - 1 ; k++ )
 				{
-					quads(l,j,n_chunks*l_chunk+k) += ( (double*)hs(l,j,0))[k] * norm_factor ;
+					quads(l,j,n_chunks*l_chunk+k) += ( (double*)hs(l,j,0))[k] ;
 				}
 			}
 		}
