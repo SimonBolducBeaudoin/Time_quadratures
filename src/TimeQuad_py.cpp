@@ -48,9 +48,9 @@ const char* s =
 	.def		("filters", 				&TimeQuad<QuadsIndexType>::get_filters 			)\
 	.def		("half_norms", 				&TimeQuad<QuadsIndexType>::get_half_norms 		)\
 	.def		("half_denormalization", 	&TimeQuad<QuadsIndexType>::half_denormalization	)\
-	.def		("execute" , 				&TimeQuad<QuadsIndexType>::execute_py<DataType> )\
 	.def_static	("compute_flatband",		&TimeQuad<QuadsIndexType>::compute_flat_band, 	 \
 		"l_hc"_a , "dt"_a, "f_min_analog_start"_a, "f_min_analog_stop"_a, "f_max_analog_start"_a, "f_max_analog_stop"_a			)\
+    .def		("execute" , &TimeQuad<QuadsIndexType>::execute_py<DataType> , py::call_guard<py::gil_scoped_release>() )\
 	\
 	;
 	
