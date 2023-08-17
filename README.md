@@ -1,7 +1,7 @@
 # Time_quadratures-OTF
 
 
-The Time_quadratures-OTF library is to do fast convolution calculation (on-the-fly) on discrete voltage measurement in order to calculate time domain quadratures p(t) and q(t). Therefore kernels for the convolutions are fixed (see : Unidimensional time-domain quantum optics, Physical Review A 100, 023822 (2019)). 
+The Time_quadratures-OTF library is to do fast convolution calculation (on-the-fly) on discrete voltage measurement in order to calculate time domain quadratures p(t) and q(t). Therefore kernels for the convolutions are fixed (see : Unidimensional time-domain quantum optics, Physical Review A 100, 023822 (2019)).  
  
 The library is written in C++ and is using Pybin11 to provide a python interface.
 
