@@ -50,7 +50,7 @@ const char* s =
 	.def		("half_denormalization", 	&TimeQuad<QuadsIndexType>::half_denormalization	)\
 	.def_static	("compute_flatband",		&TimeQuad<QuadsIndexType>::compute_flat_band, 	 \
 		"l_hc"_a , "dt"_a, "f_min_analog_start"_a, "f_min_analog_stop"_a, "f_max_analog_start"_a, "f_max_analog_stop"_a			)\
-    .def		("execute" , &TimeQuad<QuadsIndexType>::execute_py<DataType> , py::call_guard<py::gil_scoped_release>() )\
+    .def		("execute" , &TimeQuad<QuadsIndexType>::execute_py<DataType> )\
 	\
 	;
 	
