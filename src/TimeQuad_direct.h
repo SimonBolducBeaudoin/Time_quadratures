@@ -2,7 +2,7 @@
 
 #include <omp_extra.h>
 #include <Multi_array.h>
-#include <TimeQuad_algorithm.h>
+#include "TimeQuad_algorithm.h"
 
 typedef unsigned int uint;
 

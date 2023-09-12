@@ -1,5 +1,5 @@
 #include<string>
-#include <TimeQuad_py.h>
+#include "TimeQuad_py.h"
 
 const char* s = 
 "Underscore in TimeQuad_IndexType behaves like a template argument \n"
