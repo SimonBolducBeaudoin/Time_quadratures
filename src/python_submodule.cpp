@@ -3,7 +3,10 @@
 //Python Binding and Time_Quad class instances.
 PYBIND11_MODULE(time_quadratures, m)
 {
-    m.doc() = " Fast caculations of time quadratrures. See markdown documentation.";
+    m.doc() = "Fast caculations of time quadratrures.\n"\
+    "Git Info : \n "\
+    + std::string(kGitInfo)\
+    +"\n";
 	init_TimeQuad(m);
 }
 

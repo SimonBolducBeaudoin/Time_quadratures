@@ -35,3 +35,5 @@
 *.dat
 
 README.pdf
+
+build/
