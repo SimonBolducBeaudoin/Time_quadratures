@@ -4,8 +4,8 @@
 
 set(PROJECT_NAME Time_quadratures)                    
 set(LIB_NAME time_quadratures)                        
-set(EXTERNAL_INCLUDES Multi_array/src Omp_extra/src Windowing/src Special_functions/src Numerical_integration/src) 
-set(STATIC_LINKS Omp_extra/obj/omp_extra.a Special_functions/obj/special_functions.a  Windowing/obj/Windowing.a Numerical_integration/obj/Numeric_Integrals.a) 
+set(EXTERNAL_INCLUDES Multi_array/src Omp_extra/src Math_extra/src) 
+set(STATIC_LINKS Omp_extra/obj/omp_extra.a Math_extra/obj/math_extra.a) 
 set(COMPILE_OPTIONS_ADD -fopenmp -fopenmp-simd )  
 set(LINKS -fopenmp -fopenmp-simd -lfftw3 -lm)
 
