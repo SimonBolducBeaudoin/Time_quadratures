@@ -162,5 +162,4 @@ cmake --build build/ --target clean # removes targets
 ```   
 ```bash
 rm -R -f build/ # removes build directory
-```   e rm.
-    - rm -R -f build/
+```   
