@@ -1,0 +1,2 @@
+file(REMOVE @INSTALL_DIR@/time_quadratures.pyd)
+file(REMOVE @INSTALL_DIR@/time_quadratures.so)
