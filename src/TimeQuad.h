@@ -64,8 +64,6 @@ class TimeQuad
 		// Utilities
 		static uint 	compute_l_hc_from_l_kernel	( uint l_kernel )					{ return l_kernel/2+1 			;};
 		static uint 	compute_l_kernel_from_l_hc 	( uint l_hc )						{ return l_hc*2-1 				;};
-		static double 	fft_freq					( uint i , uint l_fft , double dt )	{ return ((double)i)/(dt*l_fft) ;};
-		static double 	compute_f_Nyquist			( double dt )						{ return 1.0/(2.0*dt) 			;};
 		static uint64_t compute_l_valid				( uint l_kernel, uint64_t l_data )	{ return l_data - l_kernel + 1 	;};
 		static uint64_t compute_l_full				( uint l_kernel, uint64_t l_data )	{ return l_kernel + l_data - 1 	;};
 		

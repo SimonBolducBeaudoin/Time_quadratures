@@ -2,19 +2,15 @@
 #! -*- coding: utf-8 -*-
 
 """
-This module is intended to help with the use of SBB.Time_quadratures.time_quadratures
-
-Last update
------------
-    This use to be a class and is now a module
-Todos : 
-Bugs :
+This Module is deprecated and will be grdually moved to betas,filters and kernels
 """
 
 import  numpy
 
 from SBB.Time_quadratures.time_quadratures import TimeQuad_uint64_t
 from SBB.Numpy_extra.numpy_extra import find_nearest_A_to_a
+
+from betas import normalize_beta
 
 __version__ = {'TimeQuadrature_helper': 0.7}
 __filters__ = {'gauss':0,'bigauss':1,'flatband':2}
@@ -161,16 +157,6 @@ def gen_composition_indexes(filters_info,composition):
     kernel_indexes += filter_index
     return kernel_indexes.astype(int) 
 
-def Wave_function_of_f_normalization(Y,df):
-    """
-        Note that betas are given to TimeQuad c++ class are 
-        normalized internally in construction and are accessible
-        through TimeQuad's attributes.
-        This function is for conveniance.
-    """
-    sum = numpy.sqrt( 2*df*(numpy.square(numpy.abs(Y))).sum() )
-    return Y/(sum)
-
 def Gaussian (x,mu=0.0,sigma=1.0) :
     return (1.0/(sigma*numpy.sqrt(2.0*numpy.pi))) * numpy.exp( (-(x-mu)**2)/(2.0*sigma**2) )
 
@@ -189,26 +175,6 @@ def Gaussian_filter_normalized(f,df,l_kernel,dt) :
     Y = Wave_function_of_f_normalization(Y,Delta_f)
     return Y 
     
-def moments_correction(moments,half_norms,powers):
-    """
-        Correcting for half normalization
-        
-        moments     .shape should be  (moment_index,kernel_index,...)
-        half_norms  .shape should be  (kernel_index)
-        powers      .shape should be  (moment_index)
-    """
-    powers      = numpy.array(powers)       # moment_index
-    h           = numpy.array(half_norms)   # kernel index 
-    shape       = moments.shape
-    dim         = len(shape)
-    corrections  = (h[None,:]**powers[:,None])   # moment_index , kernel_index
-    exp_axis = tuple(range(2,dim)) 
-    for ax in exp_axis :
-        corrections = numpy.expand_dims(corrections,ax)         # shape now match moments shape
-    moments_corrected = numpy.empty(moments.shape,dtype=float)  # moment_index, kernel index , cdn index
-    moments_corrected = corrections * moments 
-    return moments_corrected 
-
 ########################################
 # To help with the experiment conception
 ########################################
@@ -293,102 +259,3 @@ def _concatenate_Filters(*args):
         if not (arg.size==0) :
             t += (arg,)
     return numpy.concatenate( t, axis = 0 ) 
-
-##################################
-# From old QsVsVdc_analysis
-##################################
-
-def compute_cumulants(moments,axis=0,folding_factor=0.5):
-    """
-        Computes cumulant associated with <q**n>
-        
-        Inputs
-        --------
-        moments is an np array with shape = (...,axis,...)
-        with moment axis corresponding to the axis that respect the following moment index
-        
-        moment index :
-            0 : <q>
-            1 : <q**2>
-            2 : <q**4>
-            3 : <q**8>
-            
-        Outputs
-        --------
-        Same shape as moment exept
-        Cumulants index :
-            0 : <<q>>
-            1 : <<q**2>>
-            2 : <<q**4>>     
-    """
-    moments = moments.swapaxes(axis,0)
-    shape = (moments.shape[0]-1,) + moments.shape[1:]
-    cumulants           = numpy.zeros( shape ,dtype=float)
-    cumulants[0,...]    = moments[0,...] * (folding_factor)**(0.5) ## is this correct ???
-    cumulants[1,...]    = moments[1,...] * folding_factor
-    cumulants[2,...]    = ( moments[2,...]     - 3.0*(moments[1,...] + 0.5 )**2  ) * folding_factor**2 # <p**4> -3 <p**2> **2
-    return cumulants.swapaxes(axis,0)  
-
-def get_conditions_slice(**ref_options):
-    if ref_options.get('no_ref'):
-        return slice(None)
-    elif ref_options.get('interlacing'):
-        return slice(1,None,2)
-    else :
-        return slice(1,None,None)
-
-def get_references_slice(**ref_options):
-    if ref_options.get('no_ref'):
-        raise ConditionsError('No references')
-    elif ref_options.get('interlacing'):
-        return slice(0,None,2)
-    else :
-        return [0,]
-
-def compute_cumulants_sample(cumulants,axis=-1,**ref_options):
-    """
-        axis is the conditions axis i.e. vac or vdc
-    """
-    cumulants = cumulants.swapaxes(axis,-1)
-    slice_r             = get_references_slice(**ref_options)
-    slice_c             = get_conditions_slice(**ref_options)
-    ref                 = cumulants[...,slice_r]
-    cdn                 = cumulants[...,slice_c]
-    cumulants_sample    = cdn - ref
-    return cumulants_sample.swapaxes(axis,-1)
-
-def compute_ns(cumulants_sample,axis=0):
-    """
-    axis is the cumulants index axis which will be replaced by the photon number moment axis :
-        0 : <n>
-        1 : <n**2>
-        2 : <dn**2>
-    """
-    cumulants_sample   = cumulants_sample.swapaxes(axis,0)
-    shape       = (3,)+cumulants_sample.shape[1:]
-    ns          = numpy.zeros(shape,dtype=float)
-    n           = cumulants_sample[1,...]
-    C4          = cumulants_sample[2,...]
-    ns[0,...]   = n
-    ns[1,...]   = (2.0/3.0)*C4 + 2.0*n**2 - n   # probablement pas bon
-    ns[2,...]   = (2.0/3.0)*C4 +     n**2 + n
-    return ns.swapaxes(axis,0)
-
-def fit_of_C4(C4_s,C2_3_s,V_th_slice,axis=-1,p0=(1.0,),verbose=False):
-    """
-        C4,d = C4,m(V) - C4,m(0) = C4,s + K( C2,m**3(V) - C2,m**3(0) )
-        Assuming C4_s is zero where V_th_slice == True
-        C4_del = K*C2_3_del (see model)
-        
-        axis is the axis of the conditions ex: vdc or vac ...
-    """
-    C4_del      = C4_s  [V_th_slice]
-    C2_3_del    = C2_3_s[V_th_slice]
-    def model(x,p):
-        p0 = p[0]
-        return p0*x
-    f = lsqfit(C2_3_del,C4_del,p0,model,verbose=verbose)
-    return f
-
-def compute_fano(dn2,n):
-    return dn2/n

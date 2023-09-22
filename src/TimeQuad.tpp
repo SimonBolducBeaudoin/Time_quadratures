@@ -93,29 +93,11 @@ uint TimeQuad<Quads_Index_Type>::compute_n_quads(uint kernel_conf)
 	}
 }
 
-template<class Quads_Index_Type>
-np_complex_d TimeQuad<Quads_Index_Type>::compute_flat_band(uint l_hc,double dt,double f_min_analog_start,double f_min_analog_stop,double f_max_analog_start,double f_max_analog_stop)
-{
-	double f_Nyquist = compute_f_Nyquist( dt );
-	double f[l_hc];
-	uint l_kernel = compute_l_kernel_from_l_hc 	( l_hc );
-	Multi_array<complex_d,1> filter (l_hc);
-    
-    for ( uint i = 0 ; i<l_hc  ; i++ )
-    { 
-        f[i] = fft_freq( i , l_kernel , dt );
-        filter[i] = 1.0;
-    };
-    
-	Tukey_Window( filter.get_ptr() , f , l_hc , f_min_analog_start, f_min_analog_stop, f_max_analog_start, f_max_analog_stop , f_Nyquist ) ;
-	
-	return filter.copy_py() ;
-}
-
 // CHECKS 
 template<class Quads_Index_Type>
 void TimeQuad<Quads_Index_Type>::checks()
 {
+    /*Is this still usefull ??*/
 	if (l_kernel %2 != 1)
 	{
 		throw std::runtime_error(" l_kernel is not odd dont expect this to work... ");
@@ -240,38 +222,6 @@ void TimeQuad<Quads_Index_Type>::set_g_py(np_complex_d g)
 }
 
 template<class Quads_Index_Type>
-void TimeQuad<Quads_Index_Type>::vanilla_kp(uint quadrature_index, uint mode_index)
-{
-	double t ; 	/* Abscisse positif */
-	double prefact ;
-	double argument ;
-	double tmp1;
-	
-	uint k = quadrature_index;
-	uint j = mode_index;
-	
-	for (uint i = 0 ; i < l_kernel/2; i++ ) // l_kernel doit être impaire
-	{
-		t = ( i + 1 )*dt;
-		prefact = 2.0/sqrt(t);
-		argument = sqrt( 2.0*t/dt );
-		/* Right part */
-		tmp1 = prefact * Fresnel_Cosine_Integral( argument ) ;
-		
-		ks( k , j , l_hc + i ) = tmp1;
-		/* Left part */
-		ks( k , j , l_hc - 2 - i ) = tmp1;
-	}
-	/* In zero */
-	ks( k , j , l_kernel/2 ) = 2.0*sqrt(2.0)/sqrt(dt);
-    
-    for (uint i = 0 ; i < l_kernel; i++ )
-    {
-        ks( k , j , i ) *= prefactor ; /* units_correction * sqrt( 2/ Zh ) */
-    }
-}
-
-template<class Quads_Index_Type>
 void TimeQuad<Quads_Index_Type>::delta(uint quadrature_index, uint mode_index)
 {	
 	uint k = quadrature_index;
@@ -286,37 +236,6 @@ void TimeQuad<Quads_Index_Type>::delta(uint quadrature_index, uint mode_index)
 	ks( k , j , l_kernel/2 ) = units_correction/dt ;
 }
 
-template<class Quads_Index_Type>
-void TimeQuad<Quads_Index_Type>::vanilla_kq(uint quadrature_index, uint mode_index)
-{
-	double t ; 	/* Abscisse positif */
-	double prefact ;
-	double argument ;
-	double tmp1;
-	
-	uint k = quadrature_index;
-	uint j = mode_index;
-	
-	for (uint i = 0 ; i < l_kernel/2; i++ ) // l_kernel doit être impaire
-	{
-		t = ( i + 1 )*dt;
-		prefact = 2.0/sqrt(t);
-		argument = sqrt( 2.0*t/dt );
-		/* Right part */
-		tmp1 = prefact * Fresnel_Sine_Integral( argument ) ;
-		
-		ks( k , j , l_hc + i ) = tmp1;
-		/* Left part */
-		ks( k , j , l_hc - 2 - i ) = (-1)*tmp1;
-	}
-	/* In zero */
-	ks( k , j , l_kernel/2 ) = 0 ;
-    
-    for (uint i = 0 ; i < l_kernel; i++ )
-    {
-        ks( k , j , i ) *= prefactor ; /* units_correction * sqrt( 2/ Zh ) */
-    }
-}
 
 template<class Quads_Index_Type>
 void TimeQuad<Quads_Index_Type>::vanilla_k_pi_over_4(uint quadrature_index, uint mode_index)
@@ -382,44 +301,6 @@ void TimeQuad<Quads_Index_Type>::vanilla_k_3_pi_over_4(uint quadrature_index, ui
     }
 }
 
-template<class Quads_Index_Type>
-void TimeQuad<Quads_Index_Type>::vanilla_kernels()
-{
-	if(kernel_conf==0)
-	{
-		for ( uint i = 0 ; i<n_kernels ; i++ ) 
-		{	
-			vanilla_kq(0,i); //quadrature_index , mode_index
-		} 
-	}
-	else if (kernel_conf==1)
-	{
-		for ( uint i = 0 ; i<n_kernels ; i++ ) 
-		{	
-			vanilla_kp(0,i); //quadrature_index , mode_index
-			vanilla_kq(1,i); //quadrature_index , mode_index
-		} 
-	}
-	// else if ((kernel_conf==2)
-	// {
-		// for ( uint i = 0 ; i<n_kernels ; i++ ) 
-		// {	
-			// vanilla_k_pi_over_4(0,i); //quadrature_index , mode_index
-			// vanilla_k_3_pi_over_4(0,i); //quadrature_index , mode_index
-		// }
-	// }
-	else if(kernel_conf==3)
-	{
-		for ( uint i = 0 ; i<n_kernels ; i++ ) 
-		{	
-			delta(0,i); //quadrature_index , mode_index
-		} 
-	}
-	else
-	{
-		throw std::runtime_error(" Invalid kernel_conf ");
-	}
-}	
 
 template<class Quads_Index_Type>
 void TimeQuad<Quads_Index_Type>::normalize_for_dfts()
@@ -484,39 +365,6 @@ void TimeQuad<Quads_Index_Type>::apply_filters()
 			/* c2r destroys its inputs array */
 			fftw_execute_dft_c2r(k_backward, reinterpret_cast<fftw_complex*>(ks(k,j)) , ks(k,j) ); 
 		}
-	}
-}
-
-template<class Quads_Index_Type>
-void TimeQuad<Quads_Index_Type>::normalize_betas()
-{
-	for ( uint j = 0 ; j<n_kernels ; j++ )
-	{
-		normalize_a_beta(j);
-	}
-}
-
-template<class Quads_Index_Type>
-void TimeQuad<Quads_Index_Type>::normalize_a_beta(uint mode_index)
-{
-	/*	Normalized to 1/2 :
-						 beta(f)
-	Beta(f)	=	---------------------------
-			   ( 2 int |beta(f)|^2 df )^1/2
-	*/
-	uint j = mode_index;
-	double sum = 0 ;
-    double df = fft_freq(1,l_kernel,dt);
-	for ( uint i = 0 ; i<l_hc ; i++ )
-	{
-		sum += std::norm(betas(j,i));
-	}
-    
-	sum *= df ; 
-	sum = sqrt(2.0)*sqrt(sum);
-	for ( uint i = 0 ; i<l_hc ; i++ )
-	{
-		betas(j,i) /= sum ;
 	}
 }
 
