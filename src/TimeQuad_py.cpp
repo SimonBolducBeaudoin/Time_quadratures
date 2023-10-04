@@ -2,63 +2,41 @@
 #include "TimeQuad_py.h"
 
 const char* s = 
-"Underscore in TimeQuad_IndexType behaves like a template argument \n"
-"\t IndexType is the type of the de/referencing index for memory allocation \n"
+"\t TimeQuad_FFT implements an fft convolutions algorithm parallelized with openmp."
+"\t Memory allocation is done only once at construction."
+"\t Multiples kernels can be applied in parallel."
+"\t Class_IndexType, '_IndexType' behaves like Template Argument:\n"
+"\t IndexType is the type used for indexing memory (i.e. arr[(IndexType)i])\n"
 "Constructor arguments \n"
-"\t Z[Ohm] \n"
-"\t\t Should be the gain of the sample if you're using deconvolution \n"
-" dt[ns]\n (uint)l_data\n"
-"\t kernel_conf \n"
-"\t\t ==0 uses kq (only out of phase quadrature) \n"
-"\t\t ==1 kp and kq (in phase and out of phase quadrature)\n"
-"\t (numpy array) betas : .shape = (n_betas,l_kernels//2+1)\n"
-"\t\t The shape of the modes\n"
-"\t (numpy array) g[] : .shape = (l_kernels//2+1)\n" 
-"\t\t The gain units of in bin per volt (i.e. not A/A neither V/V)\n"
-"\t (float) alpha : parameter for the windowing \n"
-"\t (uint)l_fft : lenght of fft to be used in the concnvolution algorithm \n"
-"\t (uint)n_threads : number of computing threads to be used in computations \n" ;
+"\t ks (numpy array): Shape should be (..., l_kernels//2+1).\n"
+"\t\t The kernels to be convoluted with data"
+"\t data (numpy array) : .shape = (l_data,)\n"
+"\t\t Same type and shape as the data array that will be called in the TimeQuad_FFT.execute(data) "
+"\t dt[ns]\n l_data (uint) : The time delta between samples in seconds "
+"\t l_fft (uint) : lenght of fft to be used in the concnvolution algorithm \n"
+"\t n_threads (uint) : number of computing threads to be used in computations \n" ;
 // CLASS MACROS
-#define PY_TIME_QUAD(DataType,QuadsIndexType)\
-	py::class_<TimeQuad<QuadsIndexType>>( m , "TimeQuad_"#QuadsIndexType , s)\
+#define PY_TIME_QUAD_FFT(DataType,QuadsIndexType)\
+	py::class_<TimeQuad_FFT<QuadsIndexType,DataType>>( m , "TimeQuad_FFT_"#QuadsIndexType"_"#DataType , s)\
 	/*Constructor fft convolution */\
 	.def\
 	(\
-		py::init\
-		<\
-			double,double,uint64_t,uint,\
-			np_complex_d,np_complex_d,\
-			double,uint,int\
-		>(), \
-		"Z"_a.noconvert() 				,\
-		"dt"_a.noconvert() 				,\
-		"l_data"_a.noconvert() 			,\
-		"kernel_conf"_a.noconvert()	 	,\
-		"betas"_a.noconvert() 			,\
-		"g"_a.noconvert() 				,\
-		"alpha"_a.noconvert()		 	,\
+		py::init<np_double,np_int16,double,uint,int>(),\
+		"ks"_a.noconvert() 				,\
+		"data"_a.noconvert() 			,\
+		"dt"_a.noconvert() 			,\
 		"l_fft"_a.noconvert() 			,\
 		"n_threads"_a.noconvert() 		\
 	) \
-	.def		("ks", 						&TimeQuad<QuadsIndexType>::get_ks				)\
-	.def		("quads", 					&TimeQuad<QuadsIndexType>::get_quads			)\
-	.def		("betas", 					&TimeQuad<QuadsIndexType>::get_betas 			)\
-	.def		("g", 						&TimeQuad<QuadsIndexType>::get_g 				)\
-	.def		("set_g", 				    &TimeQuad<QuadsIndexType>::set_g_py , "g"_a.noconvert() )\
-	.def		("filters", 				&TimeQuad<QuadsIndexType>::get_filters 			)\
-	.def		("half_norms", 				&TimeQuad<QuadsIndexType>::get_half_norms 		)\
-	.def		("half_denormalization", 	&TimeQuad<QuadsIndexType>::half_denormalization	)\
-	.def_static	("compute_flatband",		&TimeQuad<QuadsIndexType>::compute_flat_band, 	 \
-		"l_hc"_a , "dt"_a, "f_min_analog_start"_a, "f_min_analog_stop"_a, "f_max_analog_start"_a, "f_max_analog_stop"_a			)\
-    .def		("execute" , &TimeQuad<QuadsIndexType>::execute_py<DataType> )\
-	\
+	.def		("quads", 					&TimeQuad_FFT<QuadsIndexType,DataType>::get_quads			)\
+    .def		("execute" , &TimeQuad_FFT<QuadsIndexType,DataType>::execute_py )\
 	;
 	
-void init_TimeQuad(py::module &m)
+void init_TimeQuad_FFT(py::module &m)
 {
-	PY_TIME_QUAD(int16_t,uint) ;
-	PY_TIME_QUAD(int16_t,uint64_t) ;
+	PY_TIME_QUAD_FFT(int16_t,uint) ;
+	PY_TIME_QUAD_FFT(int16_t,uint64_t) ;
 }
 
 // CLOSE MACRO SCOPES
-#undef PY_TIME_QUAD
+#undef PY_TIME_QUAD_FFT
