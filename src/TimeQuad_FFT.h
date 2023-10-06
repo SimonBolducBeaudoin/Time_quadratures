@@ -17,7 +17,7 @@ typedef py::array_t<double,py::array::c_style> np_double;
 typedef py::array_t<int16_t,py::array::c_style> np_int16;
 typedef py::array_t<complex_d,py::array::c_style> np_complex_d;
 
-template<class Quads_Index_Type=uint,class DataType=int16_t>
+template<class Quads_Index_Type=uint64_t,class DataType=int16_t>
 class TimeQuad_FFT
 {
 	public :
@@ -46,7 +46,7 @@ class TimeQuad_FFT
     uint64_t compute_l_data 		(py::array_t<DataType, py::array::c_style>& data);
     uint64_t compute_l_valid	( uint l_kernel, uint64_t l_data )	{ return l_data - l_kernel + 1 	;};
     uint64_t compute_l_full	( uint l_kernel, uint64_t l_data )	{ return l_kernel + l_data - 1 	;};
-    
+    Multi_array<double,2> copy_ks( np_double& np_ks, uint n_prod );
     
 	uint compute_l_chunk			( uint l_kernel ,  uint l_fft  )					{ return l_fft - l_kernel + 1 	;};
 	uint compute_n_chunks			( uint64_t l_data , uint l_chunk )					{ return l_data/l_chunk 		;};
@@ -69,8 +69,6 @@ class TimeQuad_FFT
 	uint n_chunks ; // The number of chunks
 	uint l_reste ; // The length of what didn't fit into chunks
 	
-	 
-	
 	fftw_plan kernel_plan;
 	fftw_plan g_plan;
 	fftw_plan h_plan;
@@ -81,6 +79,8 @@ class TimeQuad_FFT
 	Multi_array<complex_d,2> 	fs ; // [thread_num][frequency] Catches DFT of data
 	Multi_array<complex_d,3> 	hs ; // [n_prod][thread_num][frequency]
 	
+    
+    void checks();
 	void prepare_plans();
 	void destroy_plans();
 	

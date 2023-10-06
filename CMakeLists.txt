@@ -43,7 +43,7 @@ list(FILTER SRC_STATIC EXCLUDE REGEX ".*python_submodule\\.cpp$")
 add_compile_options(-Wall -O3 -march=native )
 add_compile_options(${COMPILE_OPTIONS_ADD})
 
-add_library(${LIB_NAME}_py ${SRC_FILES_PY})        #shared library (i.e. the python library)
+add_library(${LIB_NAME}_py ${SRC_FILES})        #shared library (i.e. the python library)
 set_target_properties(${LIB_NAME}_py PROPERTIES OUTPUT_NAME ${LIB_NAME})        #shared library (i.e. the python library)
 #add_library(${LIB_NAME} STATIC ${SRC_STATIC}) #static library (i.e. to import in other c++ projects)
 include(CMakeConfigs/pybind11.cmake) # sets IS_MINGW,PY_INCL,SHARED_LIB_PREFIX,SHARED_LIB_SUFFIX and updates LINKS
@@ -59,7 +59,7 @@ target_link_libraries(${LIB_NAME}_py ${LINKS})
 #set_target_properties(${LIB_NAME} PROPERTIES PREFIX "${SHARED_LIB_PREFIX}")
 #target_link_libraries(${LIB_NAME} ${LINKS})
 
-message(STATUS "Installing Time_quadratures")
+message(STATUS "Time_quadratures")
 set(DIR ${PROJECT_SOURCE_DIR}/obj/) 
 set(INSTALL_DIR ${PROJECT_SOURCE_DIR}) 
 install(DIRECTORY ${DIR} DESTINATION ${INSTALL_DIR} FILES_MATCHING PATTERN "*.pyd" PATTERN "*.so")

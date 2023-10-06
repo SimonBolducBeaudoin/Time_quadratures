@@ -1,5 +1,4 @@
 //CONSTRUCTOR
-
 template<class Quads_Index_Type,class DataType>
 TimeQuad_FFT<Quads_Index_Type,DataType>::TimeQuad_FFT
 (	
@@ -16,8 +15,8 @@ TimeQuad_FFT<Quads_Index_Type,DataType>::TimeQuad_FFT
     l_data      (compute_l_data(data))                  ,
     l_valid( compute_l_valid( l_kernel,l_data ) ),
     l_full( compute_l_full  ( l_kernel,l_data ) ) ,
-    ks( Multi_array<double,2>::numpy_copy(ks) ) ,
-    quads		( Multi_array<double,2,Quads_Index_Type >( n_prod , l_full ))       ,
+    ks( copy_ks(ks,n_prod) ) ,
+    quads		( Multi_array<double,2,Quads_Index_Type >( n_prod , l_full ,fftw_malloc,fftw_free))       ,
 	dt			(dt) 									, 
 	l_fft		(l_fft)									, 
 	n_threads	(n_threads)								,
@@ -27,6 +26,7 @@ TimeQuad_FFT<Quads_Index_Type,DataType>::TimeQuad_FFT
 	fs			( Multi_array<complex_d,2>	(n_threads ,(l_fft/2+1)	,fftw_malloc,fftw_free) ) 	,
 	hs          ( Multi_array<complex_d,3>	(n_prod    ,n_threads,(l_fft/2+1),fftw_malloc,fftw_free) )
 {
+    checks();
 	prepare_plans();
 }
 
@@ -36,6 +36,16 @@ TimeQuad_FFT<Quads_Index_Type,DataType>::~TimeQuad_FFT()
 {	
     destroy_plans();
 	// fftw_cleanup();
+}
+
+// CHECKS 
+template<class Quads_Index_Type,class DataType>
+void TimeQuad_FFT<Quads_Index_Type,DataType>::checks()
+{
+	if (2*l_kernel-2 > l_fft)
+	{
+		throw std::runtime_error("l_kernel to big, you have to repsect 2*l_kernel-2 <= l_fft");
+	} 
 }
 
 // PREPARE_PLANS METHOD
@@ -63,10 +73,27 @@ uint TimeQuad_FFT<Quads_Index_Type,DataType>::compute_n_prod(np_double& np_array
     py::buffer_info buffer = np_array.request() ;
     std::vector<ssize_t> shape = buffer.shape;
     uint64_t product = 1;
-    for (int i = 0; i < buffer.ndim - 2; i++) {
+    for (int i = 0; i < buffer.ndim - 1; i++) {
         product *= shape[i];
     }
     return product;
+}
+
+template<class Quads_Index_Type,class DataType>
+Multi_array<double,2> TimeQuad_FFT<Quads_Index_Type,DataType>::copy_ks( np_double& np_ks, uint n_prod )
+{
+    /*Only works on contiguous arrays (i.e. no holes)*/
+    py::buffer_info buffer = np_ks.request() ;
+    std::vector<py::ssize_t> shape = buffer.shape ; // shape copy
+    std::vector<py::ssize_t> strides = buffer.strides ; // stride copy
+    size_t num_bytes = shape[0]*strides[0] ; // Memory space 
+    double* new_ptr = (double*) malloc( num_bytes )  ; 
+	memcpy ( (void*)new_ptr, (void*)buffer.ptr, num_bytes ) ; // copying memory
+    py::ssize_t strides_m1 = strides.back(); // strides[-1]
+    strides.pop_back(); 
+    py::ssize_t strides_m2 = strides.back(); // strides[-2]
+    Multi_array<double,2> ks( new_ptr, n_prod, shape.back()/*shape[-1]*/ , strides_m2 /*strides[-2]*/ , strides_m1/*strides[-1]*/ );
+    return ks;
 }
 
 template<class Quads_Index_Type,class DataType>
@@ -93,7 +120,7 @@ uint64_t TimeQuad_FFT<Quads_Index_Type,DataType>::compute_l_data(py::array_t<Dat
 template<class Quads_Index_Type,class DataType>
 void TimeQuad_FFT<Quads_Index_Type,DataType>::prepare_kernels(np_double&  np_ks)
 {
-    Multi_array<double,2,uint> ks = Multi_array<double,2,uint>::numpy_share(np_ks);
+    Multi_array<double,2> ks = copy_ks(np_ks,n_prod);
 	double norm_factor = dt/l_fft; /*MOVED IN PREPARE_KERNELS*/
     for ( uint j = 0 ; j<n_prod ; j++ ) 
     {
@@ -210,16 +237,14 @@ void TimeQuad_FFT<Quads_Index_Type,DataType>::execute( Multi_array<DataType,1,ui
 			
 			/////
 			
-			///// THIS FOR EACH KERNELS PAIRS
+			///// FOR EACH KERNELS 
             for ( uint j = 0 ; j<n_prod ; j++ ) 
             {
                 // Product	
                 for( uint k=0 ; k < (l_fft/2+1) ; k++ )
                 {	
                     hs(j,this_thread,k) = ks_complex(j,k) * fs(this_thread,k);
-                }
-                
-                
+                }  
                 // ifft
                 fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(j,this_thread)) , (double*)hs(j,this_thread) );   
                 
@@ -298,8 +323,8 @@ np_double TimeQuad_FFT<Quads_Index_Type,DataType>::get_quads()
     shape_valid.pop_back() ;
     shape_valid.push_back(uint(l_valid)) ;
     std::vector<ssize_t> shape_full = ks_shape ;
-    shape_valid.pop_back() ;
-    shape_valid.push_back(uint(l_full)) ;
+    shape_full.pop_back() ;
+    shape_full.push_back(uint(l_full)) ;
     
     std::vector<ssize_t> strides ;    
     for (uint i = 0; i < shape_full.size(); ++i) 
