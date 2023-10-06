@@ -2,8 +2,8 @@
 #! -*- coding: utf-8 -*-
 import numpy as _np
 from scipy import constants as _C
-from numba import float64,complex128,vectorize,guvectorize,jit
-from scipy.signal.windows import tukey
+import numba as _nb
+from scipy.signal.windows import _tukey
 
 from ..Math_extra.special_functions import FresnelCos, FresnelSin
 
@@ -16,45 +16,45 @@ def gen_t(n,dt):
     else :
         return _np.r_[-(n//2)+0.5:(n//2+0.5)]*dt
     
-@vectorize([float64(float64, float64)])
+@_nb.vectorize([_nb.float64(_nb.float64, _nb.float64)])
 def _kp(t,dt):
     if t == 0 :
         return 2.0 * _np.sqrt(2.0/dt)
     else :
         return 2.0 / _np.sqrt(_np.abs(t)) * FresnelCos(_np.sqrt(2.0 * _np.abs(t) / dt))
         
-@vectorize([float64(float64, float64)])
+@_nb.vectorize([_nb.float64(_nb.float64, _nb.float64)])
 def _kq(t,dt):
     if t == 0 :
         return 0.0
     else :
         return _np.sign(t)* 2.0 / _np.sqrt(_np.abs(t)) * FresnelSin(_np.sqrt(2.0 * _np.abs(t) / dt))
 
-@vectorize([float64(float64, float64)])
+@_nb.vectorize([_nb.float64(_nb.float64, _nb.float64)])
 def _delta(t,dt):
     if t == 0 :
         return 1.0/dt ;
     else :
         return 0.0
 
-@guvectorize([(float64[:],float64,float64[:])], '(n),()->(n)')
+@_nb.guvectorize([(_nb.float64[:],_nb.float64,_nb.float64[:])], '(n),()->(n)')
 def kp(t,Z=50.0,res=None):
     K = _np.sqrt( 1.0/ (Z*_C.h) ) 
     dt = _np.abs(t[1]-t[0])
     res[:] = K*_kp(t[:],dt)
   
-@guvectorize([(float64[:],float64,float64[:])], '(n),()->(n)')
+@_nb.guvectorize([(_nb.float64[:],_nb.float64,_nb.float64[:])], '(n),()->(n)')
 def kq(t,Z=50.0,res=None):
     K = _np.sqrt( 1.0/ (Z*_C.h) ) 
     dt = _np.abs(t[1]-t[0])
     res[:] = K*_kq(t[:],dt)
 
-@vectorize([float64(float64,float64,float64,float64)])
+@_nb.vectorize([_nb.float64(_nb.float64,_nb.float64,_nb.float64,_nb.float64)])
 def _k_Theta(t,dt,Theta,Z=50.0):
     K = _np.sqrt( 1.0/ (Z*_C.h) ) 
     return K*( _kp(t,dt)*_np.sin(Theta) + _kq(t,dt)*_np.cos(Theta) )
 
-@guvectorize([(float64[:],float64,float64,float64[:])], '(n),(),()->(n)')
+@_nb.guvectorize([(_nb.float64[:],_nb.float64,_nb.float64,_nb.float64[:])], '(n),(),()->(n)')
 def k_Theta(t,Theta,Z=50.0,res=None):
     """
     k_Theta(t,Theta,Z)
@@ -69,36 +69,36 @@ def k_Theta(t,Theta,Z=50.0,res=None):
 
     Parameters:
     -----------
-    t : 1D numpy.ndarray, float64 
+    t : 1D numpy.ndarray, _nb.float64 
         time values in second (units are important).
 
-    Theta : float64 
+    Theta : _nb.float64 
         in radians.
 
-    Z : float64, optional
+    Z : _nb.float64, optional
         Line impedance
         
     Returns:
     --------
-    res : 1D numpy.ndarray, float64
+    res : 1D numpy.ndarray, _nb.float64
     """
     K = _np.sqrt( 1.0/ (Z*_C.h) ) 
     dt = _np.abs(t[1]-t[0])
     res[:] = _k_Theta(t[:],dt,Theta,Z)
 
-@guvectorize([(float64[:],float64[:])], '(n)->(n)')
+@_nb.guvectorize([(_nb.float64[:],_nb.float64[:])], '(n)->(n)')
 def delta(t,res=None):
     dt = _np.abs(t[1]-t[0])
     res[:] = _delta(t[:],dt)
 
-@jit
+@_nb.jit
 def generate_a_tukey_window(ks,alpha=0.5):
     """
     just a reminder on how to use scipy's tukey
     """
-    return tukey(ks.shape[-1],alpha=alpha) # A Tukey window with ks.shape[-1] points
+    return _tukey(ks.shape[-1],alpha=alpha) # A Tukey window with ks.shape[-1] points
 
-@guvectorize([(float64[:],float64[:],float64)], '(n)->(n),()') 
+@_nb.guvectorize([(_nb.float64[:],_nb.float64[:],_nb.float64)], '(n)->(n),()') 
 def half_normalization(k,res,hn):
     """
     half_normalization(k)
@@ -109,7 +109,7 @@ def half_normalization(k,res,hn):
     hn = _np.sqrt( (k[:]*k[:]).sum() )
     res[:] = k[:]/hn
 
-@guvectorize([(float64[:],float64,float64[:])], '(n),()->(n)') 
+@_nb.guvectorize([(_nb.float64[:],_nb.float64,_nb.float64[:])], '(n),()->(n)') 
 def half_denormalization(k,hn,res):
     """
     half_denormalization(k,hn)
@@ -123,7 +123,7 @@ def apply_filters(ks,filters):
 def make_kernels(t,betas,g=None,window=True,alpha=0.5,Z=50.,Theta=0.,half_norm=True):
     ks = k_Theta(t,Theta,Z)
     if window :
-        T = tukey(ks.shape[-1],alpha=alpha)
+        T = _tukey(ks.shape[-1],alpha=alpha)
         ks = ks*T
     if g :
         filters = betas/g
