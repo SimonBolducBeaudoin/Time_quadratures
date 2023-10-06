@@ -11,5 +11,5 @@ if _os.name == 'nt':
         _os.add_dll_directory("C:/cygwin64/usr/x86_64-w64-mingw32/sys-root/mingw/bin")
 del mingw_path
 
-__all__ = ["time_quadratures","TimeQuadrature_helper","Deprecated"]
+__all__ = ["betas","kernels","labels","time_quadratures",]
  
