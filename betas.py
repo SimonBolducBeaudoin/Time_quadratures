@@ -3,7 +3,7 @@
 import numpy as _np
 from numba import float64,complex128,vectorize,guvectorize
 
-from special_function import Tukey 
+from ..Math_extra.special_function import Tukey 
 
 @guvectorize([(complex128[:], float64, complex128[:])], '(n),()->(n)')
 def normalize(beta,df,res):
@@ -32,25 +32,7 @@ def bigaussian(f,p1,p2,res):
     df = f[1]-f[0]
     res[:] = _np.exp(1j*phi1)*_gaussian (f[:],f1_m,f1_s) + _np.exp(1j*phi2)*_gaussian (f[:],f2_m,f2_s)
     res[:] = res[:]/(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) ) # normalization
-    
-"""
-    This function is a Generalized Universal Function (gufunc)
-    that calculate the a normalize beta made outof multiple guassian structure.
-
-    Parameters:
-    -----------
-    f : 1D numpy.ndarray, float64 
-        f values in Hz (units are important).
-
-    ps : float64 
-        in radians.
-
-
-        
-    Returns:
-    --------
-    res : 1D numpy.ndarray, float64
-    """    
+     
 @guvectorize([(float64[:],float64[:,:],complex128[:])], '(n),(l,m)->(n)') 
 def multigaussian(f,ps,res):
     """
