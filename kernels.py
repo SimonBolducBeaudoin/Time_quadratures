@@ -3,7 +3,7 @@
 import numpy as _np
 from scipy import constants as _C
 import numba as _nb
-from scipy.signal.windows import _tukey
+from scipy.signal.windows import tukey as _tukey
 
 from ..Math_extra.special_functions import FresnelCos, FresnelSin
 
