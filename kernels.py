@@ -98,34 +98,36 @@ def generate_a_tukey_window(ks,alpha=0.5):
     """
     return _tukey(ks.shape[-1],alpha=alpha) # A Tukey window with ks.shape[-1] points
 
-@_nb.guvectorize([(_nb.float64[:],_nb.float64[:],_nb.float64)], '(n)->(n),()') 
-def half_normalization(k,res,hn):
+def half_normalization(ks,dt):
     """
     half_normalization(k)
     This function is designed to be used alongside 'half_denormalization.'
     Its purpose is to ensure that kernels have similar amplitudes, 
     which allows for consistent histogram bounds after convolution.
     """
-    hn = _np.sqrt( (k[:]*k[:]).sum() )
-    res[:] = k[:]/hn
-
-@_nb.guvectorize([(_nb.float64[:],_nb.float64,_nb.float64[:])], '(n),()->(n)') 
-def half_denormalization(k,hn,res):
+    hn = _np.sqrt( (ks**2).sum(axis=-1)*dt )
+    return  ks/hn[...,None] , hn
+ 
+def half_denormalization(ks):
     """
     half_denormalization(k,hn)
     """
-    res[:] = k[:]*hn
+    return ks*hn[...,None]
         
 def apply_filters(ks,filters):
+    """
+    df iDFT( dt DFT(ks)*filters ) = 1/n * iDFT(DFT(ks)*filters)
+    The 1/n is already implemented in _np.fft.irfft.
+    """
     n = ks.shape[-1]
-    return _np.fft.fftshift( _np.fft.irfft( _np.fft.rfft(_np.fft.fftshift(ks))*filters,n) )
+    return _np.fft.fftshift( _np.fft.irfft( _np.fft.rfft(_np.fft.ifftshift(ks,axes=-1))*filters,n),axes=-1 )
 
 def make_kernels(t,betas,g=None,window=True,alpha=0.5,Z=50.,Theta=0.,half_norm=True):
     ks = k_Theta(t,Theta,Z)
-    if window :
+    if window is True :
         T = _tukey(ks.shape[-1],alpha=alpha)
         ks = ks*T
-    if g :
+    if g is not None :
         filters = betas/g
     else :
         filters = betas

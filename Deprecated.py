@@ -5,7 +5,7 @@ from SBB.Pyhegel_extra.Experiment import Info, Lagging_computation, Analysis
 from SBB.Pyhegel_extra.Deprecated import logger_acq_and_compute
 from SBB.Pyhegel_extra.Deprecated import Conditions_logic,Three_points_polarisation
 from SBB.Numpy_extra.numpy_extra import find_nearest_A_to_a
-from SBB.Time_quadratures.time_quadratures import TimeQuad_uint64_t
+#from SBB.Time_quadratures.time_quadratures import TimeQuad_uint64_t
 
 import numpy
 
@@ -1513,7 +1513,7 @@ def gen_flatband(l_kernel,dt,flatband_info):
         Filters[i,:]    = TimeQuad_uint64_t.compute_flatband(l_hc,dt,flat[0]-r_f[0],flat[0],flat[1],flat[1]+r_f[1])
     return Filters
     
-from SBB.Time_quadratures.time_quadratures import TimeQuad_uint64_t
+#from SBB.Time_quadratures.time_quadratures import TimeQuad_uint64_t
 from SBB.Numpy_extra.numpy_extra import find_nearest_A_to_a
 
 def gen_gauss_Filters(l_kernel,dt,gauss_info):
