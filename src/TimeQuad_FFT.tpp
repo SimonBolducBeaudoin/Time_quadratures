@@ -220,7 +220,7 @@ void TimeQuad_FFT<Quads_Index_Type,DataType>::execute( Multi_array<DataType,1,ui
 		 // Reset g to zeros.
 		for( uint k=0; k < l_fft ; k++ )
 		{
-			gs(this_thread,k) = 0;
+			gs(this_thread,k) = 0; // Could be done only once at the start ? r2c does not destroy inputs array.
 		}
 	//// Loop on chunks ---->
 		#pragma omp for
@@ -311,10 +311,6 @@ void TimeQuad_FFT<Quads_Index_Type,DataType>::execute( Multi_array<DataType,1,ui
 template<class Quads_Index_Type,class DataType>
 np_double TimeQuad_FFT<Quads_Index_Type,DataType>::get_quads()
 {
-	/*
-	Pybind11 doesn't work with uint64_t 
-		This coul potentially cause problems with l_data, l_valid and l_full
-	*/
 	// Numpy will not copy the array when using the assignement operator=
 	double* ptr = quads[0] + l_kernel -1 ;
 	py::capsule free_dummy(	ptr, [](void *f){;} );
