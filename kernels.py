@@ -123,6 +123,7 @@ def apply_filters(ks,filters):
     return _np.fft.fftshift( _np.fft.irfft( _np.fft.rfft(_np.fft.ifftshift(ks,axes=-1))*filters,n),axes=-1 )
 
 def make_kernels(t,betas,g=None,window=True,alpha=0.5,Z=50.,Theta=0.,half_norm=True):
+    dt = abs(t[1]-t[0])
     ks = k_Theta(t,Theta,Z)
     if window is True :
         T = _tukey(ks.shape[-1],alpha=alpha)
@@ -133,7 +134,7 @@ def make_kernels(t,betas,g=None,window=True,alpha=0.5,Z=50.,Theta=0.,half_norm=T
         filters = betas
     ks = apply_filters(ks,filters)
     if half_norm :
-        ks, hn = half_normalization(ks)
+        ks, hn = half_normalization(ks,dt)
     else :
         hn = None
     return ks, hn
