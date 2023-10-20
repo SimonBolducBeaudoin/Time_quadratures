@@ -23,7 +23,7 @@ TimeQuad_FFT<Quads_Index_Type,DataType>::TimeQuad_FFT
 	l_chunk		(compute_l_chunk(l_kernel,l_fft)) 		,
     ks_complex	( Multi_array<complex_d,2>	(n_prod    ,(l_fft/2+1)	,fftw_malloc,fftw_free) ) 	,
 	gs			( Multi_array<double,2>		(n_threads ,2*(l_fft/2+1),fftw_malloc,fftw_free) ) 	,
-	fs			( Multi_array<complex_d,2>	(n_threads ,(l_fft/2+1)	,fftw_malloc,fftw_free) ) 	,
+	fs			( Multi_array<complex_d,2>	((complex_d*)gs[0],n_threads ,(l_fft/2+1)  ) ) 	,
 	hs          ( Multi_array<complex_d,3>	(n_prod    ,n_threads,(l_fft/2+1),fftw_malloc,fftw_free) )
 {
     checks();
@@ -54,7 +54,7 @@ void TimeQuad_FFT<Quads_Index_Type,DataType>::prepare_plans()
 {   
 	fftw_import_wisdom_from_filename("FFTW_Wisdom.dat");
 	kernel_plan = fftw_plan_dft_r2c_1d	( l_fft , (double*)ks_complex(0) 	, reinterpret_cast<fftw_complex*>(ks_complex(0)) 	, FFTW_EXHAUSTIVE);
-	g_plan = fftw_plan_dft_r2c_1d		( l_fft , gs[0] 					, reinterpret_cast<fftw_complex*>( fs[0] ) 			, FFTW_EXHAUSTIVE);
+	g_plan = fftw_plan_dft_r2c_1d		( l_fft , gs[0] 					, reinterpret_cast<fftw_complex*>( gs[0] ) 			, FFTW_EXHAUSTIVE);
 	h_plan = fftw_plan_dft_c2r_1d		( l_fft , reinterpret_cast<fftw_complex*>(hs(0,0)) , (double*)hs(0,0) 				, FFTW_EXHAUSTIVE); /* The c2r transform destroys its input array */
 	fftw_export_wisdom_to_filename("FFTW_Wisdom.dat"); 
 }
@@ -160,6 +160,8 @@ void TimeQuad_FFT<Quads_Index_Type,DataType>::execute_py(np_double& ks, py::arra
 	execute( data );
 }
 
+#include <iostream>
+
 template<class Quads_Index_Type,class DataType>					
 void TimeQuad_FFT<Quads_Index_Type,DataType>::execute( Multi_array<DataType,1,uint64_t>& data )
 {	
@@ -217,23 +219,23 @@ void TimeQuad_FFT<Quads_Index_Type,DataType>::execute( Multi_array<DataType,1,ui
              
 		int this_thread = omp_get_thread_num();
 		
-		 // Reset g to zeros.
-		for( uint k=0; k < l_fft ; k++ )
-		{
-			gs(this_thread,k) = 0; // Could be done only once at the start ? r2c does not destroy inputs array.
-		}
 	//// Loop on chunks ---->
 		#pragma omp for
 		for( uint i=0; i < n_chunks ; i++ )
 		{
 			///// THIS ONLY ONCE
 			// fft_data ///
-			for( uint j=0 ; j < l_chunk ; j++ )
+            uint j=0 ;
+			for(; j < l_chunk ; j++ )
 			{
 				gs(this_thread,j) = (double)data[i*l_chunk + j] ; // Cast data to double
 			}
+            for(; j < l_fft ; j++ )
+            {
+                gs(this_thread,j) = 0; //zero pad
+            }
 			
-			fftw_execute_dft_r2c( g_plan, gs[this_thread] , reinterpret_cast<fftw_complex*>( fs[this_thread] ) );
+			fftw_execute_dft_r2c( g_plan, gs[this_thread] , reinterpret_cast<fftw_complex*>( gs[this_thread] ) );
 			
 			/////
 			
@@ -285,7 +287,7 @@ void TimeQuad_FFT<Quads_Index_Type,DataType>::execute( Multi_array<DataType,1,ui
 		{
 			gs(0,k) = 0 ;
 		}	
-		fftw_execute_dft_r2c(g_plan, gs[0] , reinterpret_cast<fftw_complex*>( fs[0]) );
+		fftw_execute_dft_r2c(g_plan, gs[0] , reinterpret_cast<fftw_complex*>( gs[0]) );
 		// Product 
         for ( uint j = 0 ; j<n_prod ; j++ ) 
         {
