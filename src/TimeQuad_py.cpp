@@ -16,8 +16,8 @@ const char* s =
 "\t l_fft (uint) : lenght of fft to be used in the concnvolution algorithm \n"
 "\t n_threads (uint) : number of computing threads to be used in computations \n" ;
 // CLASS MACROS
-#define PY_TIME_QUAD_FFT(DataType)\
-	py::class_<TimeQuad_FFT<DataType>>( m , "TimeQuad_FFT_"#DataType , s)\
+#define PY_TIME_QUAD_FFT(FloatType,DataType)\
+	py::class_<TimeQuad_FFT<FloatType,DataType>>( m , "TimeQuad_FFT_"#FloatType"_"#DataType , s)\
 	.def\
 	(\
 		py::init<np_double,np_int16,double,uint,int>(),\
@@ -27,13 +27,14 @@ const char* s =
 		"l_fft"_a.noconvert() 			,\
 		"n_threads"_a.noconvert() 		\
 	) \
-	.def		("quads", 					&TimeQuad_FFT<DataType>::get_quads			)\
-    .def		("execute" , &TimeQuad_FFT<DataType>::execute_py )\
+	.def		("quads", 					&TimeQuad_FFT<FloatType,DataType>::get_quads			)\
+    .def		("execute" , &TimeQuad_FFT<FloatType,DataType>::execute_py )\
 	;
 	
 void init_TimeQuad_FFT(py::module &m)
 {
-	PY_TIME_QUAD_FFT(int16_t) ;
+	PY_TIME_QUAD_FFT(double,int16_t) ;
+    PY_TIME_QUAD_FFT(float,int16_t) ;
 }
 
 // CLOSE MACRO SCOPES
