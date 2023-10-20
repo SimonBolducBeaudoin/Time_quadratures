@@ -1,6 +1,6 @@
 //CONSTRUCTOR
-template<class Quads_Index_Type,class DataType>
-TimeQuad_FFT<Quads_Index_Type,DataType>::TimeQuad_FFT
+template<class DataType>
+TimeQuad_FFT<DataType>::TimeQuad_FFT
 (	
 	np_double ks , 
 	py::array_t<DataType, py::array::c_style> data , 
@@ -16,31 +16,31 @@ TimeQuad_FFT<Quads_Index_Type,DataType>::TimeQuad_FFT
     l_valid( compute_l_valid( l_kernel,l_data ) ),
     l_full( compute_l_full  ( l_kernel,l_data ) ) ,
     ks( copy_ks(ks,n_prod) ) ,
-    quads		( Multi_array<double,2,Quads_Index_Type >( n_prod , l_full ,fftw_malloc,fftw_free))       ,
+    quads		( Multi_array<double,2>( n_prod , l_full ,fftw_malloc,fftw_free))       ,
 	dt			(dt) 									, 
 	l_fft		(l_fft)									, 
 	n_threads	(n_threads)								,
 	l_chunk		(compute_l_chunk(l_kernel,l_fft)) 		,
-    ks_complex	( Multi_array<complex_d,2>	(n_prod    ,(l_fft/2+1)	,fftw_malloc,fftw_free) ) 	,
-	gs			( Multi_array<double,2>		(n_threads ,2*(l_fft/2+1),fftw_malloc,fftw_free) ) 	,
-	fs			( Multi_array<complex_d,2>	((complex_d*)gs[0],n_threads ,(l_fft/2+1)  ) ) 	,
-	hs          ( Multi_array<complex_d,3>	(n_prod    ,n_threads,(l_fft/2+1),fftw_malloc,fftw_free) )
+    ks_complex	( Multi_array<complex_d,2,uint32_t>	(n_prod    ,(l_fft/2+1)	,fftw_malloc,fftw_free) ) 	,
+	gs			( Multi_array<double,2,uint32_t>		(n_threads ,2*(l_fft/2+1),fftw_malloc,fftw_free) ) 	,
+	fs			( Multi_array<complex_d,2,uint32_t>	((complex_d*)gs[0],n_threads ,(l_fft/2+1)  ) ) 	,
+	hs          ( Multi_array<complex_d,3,uint32_t>	(n_prod    ,n_threads,(l_fft/2+1),fftw_malloc,fftw_free) )
 {
     checks();
 	prepare_plans();
 }
 
 // DESTRUCTOR
-template<class Quads_Index_Type,class DataType>
-TimeQuad_FFT<Quads_Index_Type,DataType>::~TimeQuad_FFT()
+template<class DataType>
+TimeQuad_FFT<DataType>::~TimeQuad_FFT()
 {	
     destroy_plans();
 	// fftw_cleanup();
 }
 
 // CHECKS 
-template<class Quads_Index_Type,class DataType>
-void TimeQuad_FFT<Quads_Index_Type,DataType>::checks()
+template<class DataType>
+void TimeQuad_FFT<DataType>::checks()
 {
 	if (2*l_kernel-2 > l_fft)
 	{
@@ -49,8 +49,8 @@ void TimeQuad_FFT<Quads_Index_Type,DataType>::checks()
 }
 
 // PREPARE_PLANS METHOD
-template<class Quads_Index_Type,class DataType>
-void TimeQuad_FFT<Quads_Index_Type,DataType>::prepare_plans()
+template<class DataType>
+void TimeQuad_FFT<DataType>::prepare_plans()
 {   
 	fftw_import_wisdom_from_filename("FFTW_Wisdom.dat");
 	kernel_plan = fftw_plan_dft_r2c_1d	( l_fft , (double*)ks_complex(0) 	, reinterpret_cast<fftw_complex*>(ks_complex(0)) 	, FFTW_EXHAUSTIVE);
@@ -59,16 +59,16 @@ void TimeQuad_FFT<Quads_Index_Type,DataType>::prepare_plans()
 	fftw_export_wisdom_to_filename("FFTW_Wisdom.dat"); 
 }
 
-template<class Quads_Index_Type,class DataType>
-void TimeQuad_FFT<Quads_Index_Type,DataType>::destroy_plans()
+template<class DataType>
+void TimeQuad_FFT<DataType>::destroy_plans()
 {
 	fftw_destroy_plan(kernel_plan); 
     fftw_destroy_plan(g_plan); 
     fftw_destroy_plan(h_plan); 
 }
 
-template<class Quads_Index_Type,class DataType>
-uint TimeQuad_FFT<Quads_Index_Type,DataType>::compute_n_prod(np_double& np_array) 
+template<class DataType>
+uint TimeQuad_FFT<DataType>::compute_n_prod(np_double& np_array) 
 {
     py::buffer_info buffer = np_array.request() ;
     std::vector<ssize_t> shape = buffer.shape;
@@ -79,8 +79,8 @@ uint TimeQuad_FFT<Quads_Index_Type,DataType>::compute_n_prod(np_double& np_array
     return product;
 }
 
-template<class Quads_Index_Type,class DataType>
-Multi_array<double,2> TimeQuad_FFT<Quads_Index_Type,DataType>::copy_ks( np_double& np_ks, uint n_prod )
+template<class DataType>
+Multi_array<double,2,uint32_t> TimeQuad_FFT<DataType>::copy_ks( np_double& np_ks, uint n_prod )
 {
     /*Only works on contiguous arrays (i.e. no holes)*/
     py::buffer_info buffer = np_ks.request() ;
@@ -92,35 +92,35 @@ Multi_array<double,2> TimeQuad_FFT<Quads_Index_Type,DataType>::copy_ks( np_doubl
     py::ssize_t strides_m1 = strides.back(); // strides[-1]
     strides.pop_back(); 
     py::ssize_t strides_m2 = strides.back(); // strides[-2]
-    Multi_array<double,2> ks( new_ptr, n_prod, shape.back()/*shape[-1]*/ , strides_m2 /*strides[-2]*/ , strides_m1/*strides[-1]*/ );
+    Multi_array<double,2,uint32_t> ks( new_ptr, n_prod, shape.back()/*shape[-1]*/ , strides_m2 /*strides[-2]*/ , strides_m1/*strides[-1]*/ );
     return ks;
 }
 
-template<class Quads_Index_Type,class DataType>
-uint TimeQuad_FFT<Quads_Index_Type,DataType>::compute_l_kernels(np_double& np_array) 
+template<class DataType>
+uint TimeQuad_FFT<DataType>::compute_l_kernels(np_double& np_array) 
 {
     py::buffer_info buffer = np_array.request() ;
     std::vector<ssize_t> shape = buffer.shape;
     return shape[buffer.ndim-1];
 }
 
-template<class Quads_Index_Type,class DataType>
-std::vector<ssize_t> TimeQuad_FFT<Quads_Index_Type,DataType>::get_shape (np_double& np_array ) 
+template<class DataType>
+std::vector<ssize_t> TimeQuad_FFT<DataType>::get_shape (np_double& np_array ) 
 {
     return  np_array.request().shape;
 }
 
-template<class Quads_Index_Type,class DataType>
-uint64_t TimeQuad_FFT<Quads_Index_Type,DataType>::compute_l_data(py::array_t<DataType, py::array::c_style>& data) {
+template<class DataType>
+uint64_t TimeQuad_FFT<DataType>::compute_l_data(py::array_t<DataType, py::array::c_style>& data) {
     py::buffer_info buffer = data.request() ;
     auto shape = buffer.shape;
     return shape[buffer.ndim-1];
 }
 
-template<class Quads_Index_Type,class DataType>
-void TimeQuad_FFT<Quads_Index_Type,DataType>::prepare_kernels(np_double&  np_ks)
+template<class DataType>
+void TimeQuad_FFT<DataType>::prepare_kernels(np_double&  np_ks)
 {
-    Multi_array<double,2> ks = copy_ks(np_ks,n_prod);
+    Multi_array<double,2,uint32_t> ks = copy_ks(np_ks,n_prod);
 	double norm_factor = dt/l_fft; /*MOVED IN PREPARE_KERNELS*/
     for ( uint j = 0 ; j<n_prod ; j++ ) 
     {
@@ -137,8 +137,8 @@ void TimeQuad_FFT<Quads_Index_Type,DataType>::prepare_kernels(np_double&  np_ks)
     }
 }
 
-template<class Quads_Index_Type,class DataType>
-void TimeQuad_FFT<Quads_Index_Type,DataType>::execution_checks(np_double& ks,py::array_t<DataType, py::array::c_style>& data  )
+template<class DataType>
+void TimeQuad_FFT<DataType>::execution_checks(np_double& ks,py::array_t<DataType, py::array::c_style>& data  )
 {
 	if ( this->l_data != (uint64_t)data.request().shape[data.request().ndim-1] )
 	{
@@ -150,8 +150,8 @@ void TimeQuad_FFT<Quads_Index_Type,DataType>::execution_checks(np_double& ks,py:
 	}
 }
 
-template<class Quads_Index_Type,class DataType>
-void TimeQuad_FFT<Quads_Index_Type,DataType>::execute_py(np_double& ks, py::array_t<DataType, py::array::c_style>& np_data)
+template<class DataType>
+void TimeQuad_FFT<DataType>::execute_py(np_double& ks, py::array_t<DataType, py::array::c_style>& np_data)
 {
 	execution_checks( ks,np_data );
     omp_set_num_threads(n_threads); // Makes sure the declared number of thread if the same as planned
@@ -162,8 +162,8 @@ void TimeQuad_FFT<Quads_Index_Type,DataType>::execute_py(np_double& ks, py::arra
 
 #include <iostream>
 
-template<class Quads_Index_Type,class DataType>					
-void TimeQuad_FFT<Quads_Index_Type,DataType>::execute( Multi_array<DataType,1,uint64_t>& data )
+template<class DataType>					
+void TimeQuad_FFT<DataType>::execute( Multi_array<DataType,1,uint64_t>& data )
 {	
 	uint64_t l_data = 	data.get_n_i();
 	uint n_chunks 	=	compute_n_chunks	(l_data,l_chunk);
@@ -310,8 +310,8 @@ void TimeQuad_FFT<Quads_Index_Type,DataType>::execute( Multi_array<DataType,1,ui
 	/////
 }
 
-template<class Quads_Index_Type,class DataType>
-np_double TimeQuad_FFT<Quads_Index_Type,DataType>::get_quads()
+template<class DataType>
+np_double TimeQuad_FFT<DataType>::get_quads()
 {
 	// Numpy will not copy the array when using the assignement operator=
 	double* ptr = quads[0] + l_kernel -1 ;
