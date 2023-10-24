@@ -30,12 +30,32 @@ const char* s =
 	.def		("quads", 					&TimeQuad_FFT<FloatType,DataType>::get_quads			)\
     .def		("execute" , &TimeQuad_FFT<FloatType,DataType>::execute_py )\
 	;
+    
+#define PY_TIME_QUAD_FFT_TO_HIST(FloatType,BinType,DataType)\
+	py::class_<TimeQuad_FFT_to_Hist<FloatType,BinType,DataType>>( m , "TimeQuad_FFT_"#FloatType"_to_Hist_"#BinType"_"#DataType , s)\
+	.def\
+	(\
+		py::init<np_double,np_int16,double,uint,uint,double,int>(),\
+		"ks"_a.noconvert() 				,\
+		"data"_a.noconvert() 			,\
+		"dt"_a.noconvert() 			    ,\
+		"l_fft"_a.noconvert() 			,\
+        "nb_of_bins"_a.noconvert() 	    ,\
+        "max"_a.noconvert() 			,\
+		"n_threads"_a.noconvert() 		\
+	) \
+	.def		("Histograms", 					&TimeQuad_FFT_to_Hist<FloatType,BinType,DataType>::get_Histograms_py			)\
+    .def("reset", &TimeQuad_FFT_to_Hist<FloatType,BinType,DataType>::reset)\
+    .def		("execute" , &TimeQuad_FFT_to_Hist<FloatType,BinType,DataType>::execute_py )\
+	;
 	
 void init_TimeQuad_FFT(py::module &m)
 {
 	PY_TIME_QUAD_FFT(double,int16_t) ;
     PY_TIME_QUAD_FFT(float,int16_t) ;
+    PY_TIME_QUAD_FFT_TO_HIST(double,uint32_t,int16_t)
 }
 
 // CLOSE MACRO SCOPES
 #undef PY_TIME_QUAD_FFT
+#undef PY_TIME_QUAD_FFT_TO_HIST
