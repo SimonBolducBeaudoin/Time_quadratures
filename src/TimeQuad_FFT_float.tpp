@@ -24,7 +24,7 @@ TimeQuad_FFT<float,DataType>::TimeQuad_FFT
     ks_complex	( Multi_array<complex_f,2,uint32_t>	(n_prod    ,(l_fft/2+1)	         ,fftwf_malloc,fftwf_free) ),
 	gs			( Multi_array<float,2,uint32_t>		(n_threads ,2*(l_fft/2+1)        ,fftwf_malloc,fftwf_free) ),
 	fs			( Multi_array<complex_f,2,uint32_t>	(n_threads ,(l_fft/2+1)          ,fftwf_malloc,fftwf_free) ),
-	hs          ( Multi_array<complex_f,3,uint32_t>	(n_prod    ,n_threads,(l_fft/2+1),fftwf_malloc,fftwf_free) )
+	hs          ( Multi_array<complex_f,2,uint32_t>	(n_threads,(l_fft/2+1),fftwf_malloc,fftwf_free) )
 {
     checks();
 	prepare_plans();
@@ -53,11 +53,11 @@ void TimeQuad_FFT<float,DataType>::checks()
 template<class DataType>
 void TimeQuad_FFT<float,DataType>::prepare_plans()
 {   
-	fftwf_import_wisdom_from_filename("fftwf_Wisdom.dat");
+	fftwf_import_wisdom_from_filename("FFTWF_Wisdom.dat");
 	kernel_plan = fftwf_plan_dft_r2c_1d	( l_fft , (float*)ks_complex(0) 	, reinterpret_cast<fftwf_complex*>(ks_complex(0)) 	, FFTW_EXHAUSTIVE);
-	g_plan = fftwf_plan_dft_r2c_1d		( l_fft , gs[0] 					, reinterpret_cast<fftwf_complex*>( gs[0] ) 			, FFTW_EXHAUSTIVE);
-	h_plan = fftwf_plan_dft_c2r_1d		( l_fft , reinterpret_cast<fftwf_complex*>(hs(0,0)) , (float*)hs(0,0) 				, FFTW_EXHAUSTIVE); /* The c2r transform destroys its input array */
-	fftwf_export_wisdom_to_filename("fftwf_Wisdom.dat"); 
+	g_plan = fftwf_plan_dft_r2c_1d		( l_fft , gs[0] 					, reinterpret_cast<fftwf_complex*>( fs[0] ) 			, FFTW_EXHAUSTIVE);
+	h_plan = fftwf_plan_dft_c2r_1d		( l_fft , reinterpret_cast<fftwf_complex*>(hs(0)) , (float*)hs(0) 				, FFTW_EXHAUSTIVE); /* The c2r transform destroys its input array */
+	fftwf_export_wisdom_to_filename("FFTWF_Wisdom.dat"); 
 }
 
 template<class DataType>
@@ -247,30 +247,30 @@ void TimeQuad_FFT<float,DataType>::execute( Multi_array<DataType,1,uint64_t>& da
                 // Product	
                 for( uint k=0 ; k < (l_fft/2+1) ; k++ )
                 {	
-                    hs(j,this_thread,k) = ks_complex(j,k) * fs(this_thread,k);
+                    hs(this_thread,k) = ks_complex(j,k) * fs(this_thread,k);
                 }  
                 // ifft
-                fftwf_execute_dft_c2r(h_plan , reinterpret_cast<fftwf_complex*>(hs(j,this_thread)) , (float*)hs(j,this_thread) );   
+                fftwf_execute_dft_c2r(h_plan , reinterpret_cast<fftwf_complex*>(hs(this_thread)) , (float*)hs(this_thread) );   
                 
                 // First l_kernel-1.0 points
                 // Subject to race conditions
                 for( uint k=0; k < l_kernel-1 ; k++ )
                 {
                     #pragma omp atomic update
-                    quads(j,i*l_chunk+k) += ( (float*)hs(j,this_thread))[k] ;
+                    quads(j,i*l_chunk+k) += ( (float*)hs(this_thread))[k] ;
                 }
                 // Copy result to p and q 
                 // Not subject to race conditions
                 for( uint k=l_kernel-1; k < l_chunk ; k++ )
                 {	
-                    quads(j,i*l_chunk+k) = ( (float*)hs(j,this_thread))[k] ;
+                    quads(j,i*l_chunk+k) = ( (float*)hs(this_thread))[k] ;
                 }
                 // Last l_kernel-1.0 points
                 // Subject to race conditions
                 for( uint k=l_chunk ; k < l_fft ; k++ )
                 {
                     #pragma omp atomic update
-                    quads(j,i*l_chunk+k) += ( (float*)hs(j,this_thread))[k] ;
+                    quads(j,i*l_chunk+k) += ( (float*)hs(this_thread))[k] ;
                 }
             }
 		}
@@ -297,15 +297,15 @@ void TimeQuad_FFT<float,DataType>::execute( Multi_array<DataType,1,uint64_t>& da
             for( uint k=0; k < (l_fft/2+1) ; k++)
             {
                 tmp = fs(0,k) ;
-                hs(j,0,k) = ks_complex(j,k) * tmp;
+                hs(0,k) = ks_complex(j,k) * tmp;
             }
             
-            fftwf_execute_dft_c2r(h_plan , reinterpret_cast<fftwf_complex*>(hs(j,0)) , (float*)hs(j,0) );  
+            fftwf_execute_dft_c2r(h_plan , reinterpret_cast<fftwf_complex*>(hs(0)) , (float*)hs(0) );  
         
             // Select only the part of the ifft that contributes to the full output length
             for( uint k = 0 ; k < l_reste + l_kernel - 1 ; k++ )
             {
-                quads(j,n_chunks*l_chunk+k) += ( (float*)hs(j,0))[k] ;
+                quads(j,n_chunks*l_chunk+k) += ( (float*)hs(0))[k] ;
             }
         }
 	}
