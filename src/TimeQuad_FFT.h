@@ -85,7 +85,7 @@ class TimeQuad_FFT<double,DataType>
 	Multi_array<complex_d,2,uint32_t> ks_complex; // [n_prod][frequency]
 	Multi_array<double,2,uint32_t> 		gs ; // [thread_num][frequency] Catches data from data*
 	Multi_array<complex_d,2,uint32_t> 	fs ; // [thread_num][frequency] Catches DFT of data
-	Multi_array<complex_d,3,uint32_t> 	hs ; // [n_prod][thread_num][frequency]
+	Multi_array<complex_d,2,uint32_t> 	hs ; // [n_prod][thread_num][frequency]
 	
     void checks();
 	void prepare_plans();
