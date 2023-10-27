@@ -24,7 +24,7 @@ TimeQuad_FFT<double,DataType>::TimeQuad_FFT
     ks_complex	( Multi_array<complex_d,2,uint32_t>	(n_prod    ,(l_fft/2+1)	 ,fftw_malloc,fftw_free) ),
 	gs			( Multi_array<double,2,uint32_t>    (n_threads ,2*(l_fft/2+1),fftw_malloc,fftw_free) ),
 	fs			( Multi_array<complex_d,2,uint32_t>	(n_threads ,(l_fft/2+1)  ,fftw_malloc,fftw_free) ),
-	hs          ( Multi_array<complex_d,2,uint32_t>	(n_threads,(l_fft/2+1),fftw_malloc,fftw_free) )
+	hs          ( Multi_array<complex_d,3,uint32_t>	(n_threads,n_prod,(l_fft/2+1),fftw_malloc,fftw_free) )
 {
     checks();
 	prepare_plans();
@@ -56,7 +56,22 @@ void TimeQuad_FFT<double,DataType>::prepare_plans()
 	fftw_import_wisdom_from_filename("FFTW_Wisdom.dat");
 	kernel_plan = fftw_plan_dft_r2c_1d	( l_fft , (double*)ks_complex(0) 	, reinterpret_cast<fftw_complex*>(ks_complex(0)) 	, FFTW_EXHAUSTIVE);
 	g_plan = fftw_plan_dft_r2c_1d		( l_fft , gs[0] 					, reinterpret_cast<fftw_complex*>( fs[0] ) 			, FFTW_EXHAUSTIVE);
-	h_plan = fftw_plan_dft_c2r_1d		( l_fft , reinterpret_cast<fftw_complex*>(hs(0)) , (double*)hs(0) 				, FFTW_EXHAUSTIVE); /* The c2r transform destroys its input array */
+	// h_plan = fftw_plan_dft_c2r_1d		( l_fft , reinterpret_cast<fftw_complex*>(hs(0)) , (double*)hs(0) 				, FFTW_EXHAUSTIVE); 
+    int n[] = {(int)l_fft} ;
+    h_plan = fftw_plan_many_dft_c2r( 
+        1, // rank == 1D transform
+        n , //  list of dimensions 
+        n_prod  , // howmany (to do many ffts on the same core)
+        reinterpret_cast<fftw_complex*>(hs(0,0)), // input
+        NULL , // inembed
+        1 , // istride
+        l_fft/2 + 1 , // idist
+        (double*)hs(0,0) ,  // output
+        NULL , //  onembed
+        1 , // ostride
+        2*(l_fft/2+1) , // odist
+        FFTW_EXHAUSTIVE
+        ); 
 	fftw_export_wisdom_to_filename("FFTW_Wisdom.dat"); 
 }
 
@@ -161,7 +176,6 @@ void TimeQuad_FFT<double,DataType>::execute_py(np_double& ks, py::array_t<DataTy
 	execute( data );
 }
 
-#include <iostream>
 
 template<class DataType>					
 void TimeQuad_FFT<double,DataType>::execute( Multi_array<DataType,1,uint64_t>& data )
@@ -173,17 +187,10 @@ void TimeQuad_FFT<double,DataType>::execute( Multi_array<DataType,1,uint64_t>& d
     /////////////////////
     // RESET PS AND QS //
     /////////////////////
-	#pragma omp parallel
+	// auto t0 = std::chrono::high_resolution_clock::now() ;
+    #pragma omp parallel
     {
         manage_thread_affinity();
-        // Reset ps and qs to 0
-        // Only the parts that are subject to race conditions
-        /*
-            Possible optimizations :
-                - Inverse i and j loop
-                - Use collapse of nested loops : https://pages.tacc.utexas.edu/~eijkhout/pcse/html/omp-loop.html
-                - SIMD instructions : https://www.openmp.org/spec-html/5.0/openmpsu42.html
-        */
         
         #pragma omp for simd collapse(3)
         for ( uint j = 0 ; j<n_prod ; j++ ) 
@@ -211,66 +218,110 @@ void TimeQuad_FFT<double,DataType>::execute( Multi_array<DataType,1,uint64_t>& d
             }
         }
 	}
+    // auto t1 = std::chrono::high_resolution_clock::now() ;
 	///////////////////////
     // COMPUTE PS AND QS //
     ///////////////////////
+    // uint64_t tt_zeropad = 0 ;
+    // uint64_t tt_CopyAndCast = 0 ;
+    // uint64_t tt_rfft  = 0 ;
+    // uint64_t tt_prod  = 0 ;
+    // uint64_t tt_irfft = 0 ;
+    // uint64_t tt_toQs  = 0 ;
+    
 	#pragma omp parallel
 	{	
 		manage_thread_affinity();
-             
+        
+        // uint64_t t_CopyAndCast = 0 ;
+        // uint64_t t_rfft  = 0 ;
+        // uint64_t t_prod  = 0 ;
+        // uint64_t t_irfft = 0 ;
+        // uint64_t t_toQs  = 0 ;
+        
+        // auto tt0 = std::chrono::high_resolution_clock::now() ;
 		int this_thread = omp_get_thread_num();
 		for(uint k=l_chunk; k  < l_fft ; k++ )
         {
             gs(this_thread,k) = 0; //zero pad
         }
+        // auto tt1 = std::chrono::high_resolution_clock::now() ;
+         
 	//// Loop on chunks ---->
 		#pragma omp for
 		for( uint i=0; i < n_chunks ; i++ )
 		{
-			///// THIS ONLY ONCE
-			// fft_data ///
+			// auto tt2 = std::chrono::high_resolution_clock::now() ;
 			for(uint j=0 ; j < l_chunk ; j++ )
 			{
 				gs(this_thread,j) = (double)data[i*l_chunk + j] ; // Cast data to double
 			}
+            // auto tt3 = std::chrono::high_resolution_clock::now() ;
+            // t_CopyAndCast += duration(tt2,tt3)  ;
 			
 			fftw_execute_dft_r2c( g_plan, gs[this_thread] , reinterpret_cast<fftw_complex*>( fs[this_thread] ) );
 			
+            // auto tt4 = std::chrono::high_resolution_clock::now() ;
+            // t_rfft += duration(tt3,tt4)  ;
+            
 			/////
 			
 			///// FOR EACH KERNELS 
+            // auto tt5 = std::chrono::high_resolution_clock::now() ;
             for ( uint j = 0 ; j<n_prod ; j++ ) 
             {
-                // Product	
+                
                 for( uint k=0 ; k < (l_fft/2+1) ; k++ )
                 {	
-                    hs(this_thread,k) = ks_complex(j,k) * fs(this_thread,k);
+                    hs(this_thread,j,k) = ks_complex(j,k) * fs(this_thread,k);
                 }  
-                // ifft
-                fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(this_thread)) , (double*)hs(this_thread) );   
+            } 
+            // auto tt6 = std::chrono::high_resolution_clock::now() ;
+            // t_prod += duration(tt5,tt6)  ;
+            
+            fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(this_thread)) , (double*)hs(this_thread) );   
+            // auto tt7 = std::chrono::high_resolution_clock::now() ;
+            // t_irfft += duration(tt6,tt7)  ;
                 
-                // First l_kernel-1.0 points
-                // Subject to race conditions
+            for ( uint j = 0 ; j<n_prod ; j++ ) 
+            {    
                 for( uint k=0; k < l_kernel-1 ; k++ )
                 {
                     #pragma omp atomic update
-                    quads(j,i*l_chunk+k) += ( (double*)hs(this_thread))[k] ;
+                    quads(j,i*l_chunk+k) += ( (double*)hs(this_thread,j))[k] ;
                 }
-                // Copy result to p and q 
-                // Not subject to race conditions
                 for( uint k=l_kernel-1; k < l_chunk ; k++ )
                 {	
-                    quads(j,i*l_chunk+k) = ( (double*)hs(this_thread))[k] ;
+                    quads(j,i*l_chunk+k) = ( (double*)hs(this_thread,j))[k] ;
                 }
-                // Last l_kernel-1.0 points
-                // Subject to race conditions
                 for( uint k=l_chunk ; k < l_fft ; k++ )
                 {
                     #pragma omp atomic update
-                    quads(j,i*l_chunk+k) += ( (double*)hs(this_thread))[k] ;
+                    quads(j,i*l_chunk+k) += ( (double*)hs(this_thread,j))[k] ;
                 }
             }
+            // auto tt8 = std::chrono::high_resolution_clock::now() ;
+            // t_toQs += duration(tt7,tt8)  ;
 		}
+                
+        // uint64_t t_zeropad = duration(tt0, tt1);
+        // #pragma omp atomic update
+        // tt_zeropad += t_zeropad; 
+        // #pragma omp atomic update
+        // tt_CopyAndCast += t_CopyAndCast; 
+        // #pragma omp atomic update
+        // tt_rfft += t_rfft;
+        // #pragma omp atomic update
+        // tt_prod += t_prod; 
+        // #pragma omp atomic update
+        // tt_irfft += t_irfft; 
+        // #pragma omp atomic update
+        // tt_toQs += t_toQs; 
+        
+        // std::cout
+        // << "Thread [" << this_thread << " ] =  " <<(t_zeropad+t_CopyAndCast+t_rfft+t_prod+t_irfft+t_toQs)/1000000<< "[ms]\n"
+        // << "\t (Zp, Cp, fft, prod, ifft, toQs ) \n" 
+        // << "\t ("<<t_zeropad/1000000<<","<<t_CopyAndCast/1000000<<","<<t_rfft/1000000<<","<<t_prod/1000000<<","<<t_irfft/1000000<<","<<t_toQs/1000000<<")\n";
 	}
 	///// The rest ---->
 	if (l_reste != 0)
@@ -294,17 +345,25 @@ void TimeQuad_FFT<double,DataType>::execute( Multi_array<DataType,1,uint64_t>& d
             for( uint k=0; k < (l_fft/2+1) ; k++)
             {
                 tmp = fs(0,k) ;
-                hs(0,k) = ks_complex(j,k) * tmp;
+                hs(0,0,k) = ks_complex(j,k) * tmp;
             }
             
-            fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(0)) , (double*)hs(0) );  
+            fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(0,0)) , (double*)hs(0,0) );  
         
             // Select only the part of the ifft that contributes to the full output length
             for( uint k = 0 ; k < l_reste + l_kernel - 1 ; k++ )
             {
-                quads(j,n_chunks*l_chunk+k) += ( (double*)hs(0))[k] ;
+                quads(j,n_chunks*l_chunk+k) += ( (double*)hs(0,0))[k] ;
             }
         }
+        
+        // uint64_t tt_Qs_reste = duration(t0,t1);
+        
+        // std::cout
+        // << "Total  = " <<(tt_Qs_reste+tt_zeropad+tt_CopyAndCast+tt_rfft+tt_prod+tt_irfft+tt_toQs)/1000000<< "[ms]\n"
+        // << "\t tt_Qs_reset " << tt_Qs_reste/1000 << "[us]\n" 
+        // << "\t (Zp, Cp, fft, prod, ifft, toQs ) \n" 
+        // << "\t ("<<tt_zeropad/1000000<<","<<tt_CopyAndCast/1000000<<","<<tt_rfft/1000000<<","<<tt_prod/1000000<<","<<tt_irfft/1000000<<","<<tt_toQs/1000000<<")\n";
 	}
 	/////
 }

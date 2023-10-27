@@ -21,6 +21,18 @@ typedef py::array_t<int16_t,py::array::c_style> np_int16;
 typedef py::array_t<complex_f,py::array::c_style> np_complex_f;
 typedef py::array_t<complex_d,py::array::c_style> np_complex_d;
 
+
+// #include <iostream>
+// #include <chrono>
+// typedef std::chrono::high_resolution_clock CLOCK  ;
+// typedef std::chrono::time_point<CLOCK> time_point  ;
+
+template<class TimePointType>
+uint64_t duration(TimePointType t0, TimePointType t1)
+{
+    return std::chrono::time_point_cast<std::chrono::nanoseconds>(t1).time_since_epoch().count() - std::chrono::time_point_cast<std::chrono::nanoseconds>(t0).time_since_epoch().count();
+}
+
 template<class FloatType=double,class DataType=int16_t>
 class TimeQuad_FFT
 {};
@@ -85,7 +97,7 @@ class TimeQuad_FFT<double,DataType>
 	Multi_array<complex_d,2,uint32_t> ks_complex; // [n_prod][frequency]
 	Multi_array<double,2,uint32_t> 		gs ; // [thread_num][frequency] Catches data from data*
 	Multi_array<complex_d,2,uint32_t> 	fs ; // [thread_num][frequency] Catches DFT of data
-	Multi_array<complex_d,2,uint32_t> 	hs ; // [n_prod][thread_num][frequency]
+	Multi_array<complex_d,3,uint32_t> 	hs ; // [n_prod][thread_num][frequency]
 	
     void checks();
 	void prepare_plans();
