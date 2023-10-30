@@ -15,7 +15,7 @@ TimeQuad_FFT<double,DataType>::TimeQuad_FFT
     l_data      (compute_l_data(data))                  ,
     l_valid( compute_l_valid( l_kernel,l_data ) ),
     l_full( compute_l_full  ( l_kernel,l_data ) ) ,
-    ks( copy_ks(ks,n_prod) ) ,
+    ks          ( copy_ks(ks,n_prod) ) ,
     quads		( Multi_array<double,2>( n_prod , l_full ,fftw_malloc,fftw_free))       ,
 	dt			(dt) 									, 
 	l_fft		(l_fft)									, 
@@ -183,45 +183,9 @@ void TimeQuad_FFT<double,DataType>::execute( Multi_array<DataType,1,uint64_t>& d
 	uint64_t l_data = 	data.get_n_i();
 	uint n_chunks 	=	compute_n_chunks	(l_data,l_chunk);
 	uint l_reste 	=	compute_l_reste		(l_data,l_chunk);
-
-    /////////////////////
-    // RESET PS AND QS //
-    /////////////////////
-	// auto t0 = std::chrono::high_resolution_clock::now() ;
-    #pragma omp parallel
-    {
-        manage_thread_affinity();
-        
-        #pragma omp for simd collapse(3)
-        for ( uint j = 0 ; j<n_prod ; j++ ) 
-        {  
-            for( uint i=0; i < n_chunks-1 ; i++ )
-            {	
-                // Last l_kernel-1.0 points
-                // Subject to race conditions
-                for( uint k=l_chunk ; k < l_fft; k++ )
-                {	
-                    quads(j,i*l_chunk+k) = 0.0 ;
-                }
-            }	
-        }
-    }
-	if (l_reste != 0)
-	{			
-		// Product 
-        for ( uint j = 0 ; j<n_prod ; j++ ) 
-        {
-            // Select only the part of the ifft that contributes to the full output length
-            for( uint k = 0 ; k < l_reste + l_kernel - 1 ; k++ )
-            {
-                quads(j,n_chunks*l_chunk+k) = 0.0 ;
-            }
-        }
-	}
+    
     // auto t1 = std::chrono::high_resolution_clock::now() ;
-	///////////////////////
-    // COMPUTE PS AND QS //
-    ///////////////////////
+    
     // uint64_t tt_zeropad = 0 ;
     // uint64_t tt_CopyAndCast = 0 ;
     // uint64_t tt_rfft  = 0 ;
@@ -229,99 +193,87 @@ void TimeQuad_FFT<double,DataType>::execute( Multi_array<DataType,1,uint64_t>& d
     // uint64_t tt_irfft = 0 ;
     // uint64_t tt_toQs  = 0 ;
     
-	#pragma omp parallel
-	{	
-		manage_thread_affinity();
-        
-        // uint64_t t_CopyAndCast = 0 ;
-        // uint64_t t_rfft  = 0 ;
-        // uint64_t t_prod  = 0 ;
-        // uint64_t t_irfft = 0 ;
-        // uint64_t t_toQs  = 0 ;
-        
-        // auto tt0 = std::chrono::high_resolution_clock::now() ;
-		int this_thread = omp_get_thread_num();
-		for(uint k=l_chunk; k  < l_fft ; k++ )
+    if (l_reste != 0)
+    {			
+        for ( uint j = 0 ; j<n_prod ; j++ ) 
         {
-            gs(this_thread,k) = 0; //zero pad
+            for( uint k = 0 ; k < l_reste + l_kernel - 1 ; k++ )
+            {
+                quads(j,n_chunks*l_chunk+k) = 0.0 ;
+            }
         }
-        // auto tt1 = std::chrono::high_resolution_clock::now() ;
-         
-	//// Loop on chunks ---->
+    }
+    #pragma omp parallel
+    {
+        manage_thread_affinity();
+        #pragma omp for simd collapse(3) nowait
+        for ( uint j = 0 ; j<n_prod ; j++ ) 
+        {  
+            for( uint i=0; i < n_chunks-1 ; i++ )
+            {	
+                for( uint k=l_chunk ; k < l_fft; k++ )
+                {	
+                    quads(j,i*l_chunk+k) = 0.0 ;
+                }
+            }	
+        }
+        #pragma omp for simd collapse(2) nowait
+		for( int th_n=0; th_n<n_threads; th_n++ )  
+        {            
+            for(uint k=l_chunk; k  < l_fft ; k++ )
+            {
+                gs(th_n,k) = 0; //zero pad
+            }
+        }
+        int this_thread = omp_get_thread_num();
+        
+        #pragma omp barrier
 		#pragma omp for
 		for( uint i=0; i < n_chunks ; i++ )
 		{
-			// auto tt2 = std::chrono::high_resolution_clock::now() ;
+            // #pragma GCC unroll n
+            // #pragma GCC ivdep // unconditionally vectorize
 			for(uint j=0 ; j < l_chunk ; j++ )
 			{
-				gs(this_thread,j) = (double)data[i*l_chunk + j] ; // Cast data to double
-			}
-            // auto tt3 = std::chrono::high_resolution_clock::now() ;
-            // t_CopyAndCast += duration(tt2,tt3)  ;
-			
+				gs(this_thread,j) = (double)data[i*l_chunk + j] ; 
+			}			
 			fftw_execute_dft_r2c( g_plan, gs[this_thread] , reinterpret_cast<fftw_complex*>( fs[this_thread] ) );
-			
-            // auto tt4 = std::chrono::high_resolution_clock::now() ;
-            // t_rfft += duration(tt3,tt4)  ;
-            
-			/////
-			
-			///// FOR EACH KERNELS 
-            // auto tt5 = std::chrono::high_resolution_clock::now() ;
+            // #pragma GCC unroll n
             for ( uint j = 0 ; j<n_prod ; j++ ) 
             {
-                
+                // #pragma GCC unroll n
+                // #pragma GCC ivdep // unconditionally vectorize
                 for( uint k=0 ; k < (l_fft/2+1) ; k++ )
                 {	
                     hs(this_thread,j,k) = ks_complex(j,k) * fs(this_thread,k);
                 }  
             } 
-            // auto tt6 = std::chrono::high_resolution_clock::now() ;
-            // t_prod += duration(tt5,tt6)  ;
-            
             fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(this_thread)) , (double*)hs(this_thread) );   
-            // auto tt7 = std::chrono::high_resolution_clock::now() ;
-            // t_irfft += duration(tt6,tt7)  ;
-                
+            
             for ( uint j = 0 ; j<n_prod ; j++ ) 
             {    
+                // #pragma GCC unroll n
+                // #pragma GCC ivdep 
                 for( uint k=0; k < l_kernel-1 ; k++ )
                 {
                     #pragma omp atomic update
                     quads(j,i*l_chunk+k) += ( (double*)hs(this_thread,j))[k] ;
                 }
+                // #pragma GCC unroll n
+                // #pragma GCC ivdep 
                 for( uint k=l_kernel-1; k < l_chunk ; k++ )
                 {	
                     quads(j,i*l_chunk+k) = ( (double*)hs(this_thread,j))[k] ;
                 }
+                // #pragma GCC unroll n
+                // #pragma GCC ivdep 
                 for( uint k=l_chunk ; k < l_fft ; k++ )
                 {
                     #pragma omp atomic update
                     quads(j,i*l_chunk+k) += ( (double*)hs(this_thread,j))[k] ;
                 }
             }
-            // auto tt8 = std::chrono::high_resolution_clock::now() ;
-            // t_toQs += duration(tt7,tt8)  ;
 		}
-                
-        // uint64_t t_zeropad = duration(tt0, tt1);
-        // #pragma omp atomic update
-        // tt_zeropad += t_zeropad; 
-        // #pragma omp atomic update
-        // tt_CopyAndCast += t_CopyAndCast; 
-        // #pragma omp atomic update
-        // tt_rfft += t_rfft;
-        // #pragma omp atomic update
-        // tt_prod += t_prod; 
-        // #pragma omp atomic update
-        // tt_irfft += t_irfft; 
-        // #pragma omp atomic update
-        // tt_toQs += t_toQs; 
-        
-        // std::cout
-        // << "Thread [" << this_thread << " ] =  " <<(t_zeropad+t_CopyAndCast+t_rfft+t_prod+t_irfft+t_toQs)/1000000<< "[ms]\n"
-        // << "\t (Zp, Cp, fft, prod, ifft, toQs ) \n" 
-        // << "\t ("<<t_zeropad/1000000<<","<<t_CopyAndCast/1000000<<","<<t_rfft/1000000<<","<<t_prod/1000000<<","<<t_irfft/1000000<<","<<t_toQs/1000000<<")\n";
 	}
 	///// The rest ---->
 	if (l_reste != 0)
@@ -332,13 +284,12 @@ void TimeQuad_FFT<double,DataType>::execute( Multi_array<DataType,1,uint64_t>& d
 		{
 			gs(0,k) = (double)data[n_chunks*l_chunk + k] ;
 		}
-		// make sure g only contains zeros
+        
 		for(; k < l_fft ; k++ )
 		{
 			gs(0,k) = 0 ;
 		}	
 		fftw_execute_dft_r2c(g_plan, gs[0] , reinterpret_cast<fftw_complex*>( fs[0]) );
-		// Product 
         for ( uint j = 0 ; j<n_prod ; j++ ) 
         {
             complex_d tmp;
@@ -350,7 +301,6 @@ void TimeQuad_FFT<double,DataType>::execute( Multi_array<DataType,1,uint64_t>& d
             
             fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(0,0)) , (double*)hs(0,0) );  
         
-            // Select only the part of the ifft that contributes to the full output length
             for( uint k = 0 ; k < l_reste + l_kernel - 1 ; k++ )
             {
                 quads(j,n_chunks*l_chunk+k) += ( (double*)hs(0,0))[k] ;

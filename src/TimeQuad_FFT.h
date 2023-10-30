@@ -22,10 +22,10 @@ typedef py::array_t<complex_f,py::array::c_style> np_complex_f;
 typedef py::array_t<complex_d,py::array::c_style> np_complex_d;
 
 
-// #include <iostream>
-// #include <chrono>
-// typedef std::chrono::high_resolution_clock CLOCK  ;
-// typedef std::chrono::time_point<CLOCK> time_point  ;
+#include <iostream>
+#include <chrono>
+typedef std::chrono::high_resolution_clock CLOCK  ;
+typedef std::chrono::time_point<CLOCK> time_point  ;
 
 template<class TimePointType>
 uint64_t duration(TimePointType t0, TimePointType t1)
@@ -169,7 +169,7 @@ class TimeQuad_FFT<float,DataType>
 	Multi_array<complex_f,2,uint32_t> ks_complex; // [n_prod][frequency]
 	Multi_array<float,2,uint32_t> 		gs ; // [thread_num][frequency] Catches data from data*
 	Multi_array<complex_f,2,uint32_t> 	fs ; // [thread_num][frequency] Catches DFT of data
-	Multi_array<complex_f,2,uint32_t> 	hs ; // [n_prod][thread_num][frequency]
+	Multi_array<complex_f,3,uint32_t> 	hs ; // [n_prod][thread_num][frequency]
 	
     void checks();
 	void prepare_plans();
