@@ -22,16 +22,16 @@ typedef py::array_t<complex_f,py::array::c_style> np_complex_f;
 typedef py::array_t<complex_d,py::array::c_style> np_complex_d;
 
 
-#include <iostream>
-#include <chrono>
-typedef std::chrono::high_resolution_clock CLOCK  ;
-typedef std::chrono::time_point<CLOCK> time_point  ;
+// #include <iostream>
+// #include <chrono>
+// typedef std::chrono::high_resolution_clock CLOCK  ;
+// typedef std::chrono::time_point<CLOCK> time_point  ;
 
-template<class TimePointType>
-uint64_t duration(TimePointType t0, TimePointType t1)
-{
-    return std::chrono::time_point_cast<std::chrono::nanoseconds>(t1).time_since_epoch().count() - std::chrono::time_point_cast<std::chrono::nanoseconds>(t0).time_since_epoch().count();
-}
+// template<class TimePointType>
+// uint64_t duration(TimePointType t0, TimePointType t1)
+// {
+    // return std::chrono::time_point_cast<std::chrono::nanoseconds>(t1).time_since_epoch().count() - std::chrono::time_point_cast<std::chrono::nanoseconds>(t0).time_since_epoch().count();
+// }
 
 template<class FloatType=double,class DataType=int16_t>
 class TimeQuad_FFT

@@ -56,7 +56,6 @@ void TimeQuad_FFT<double,DataType>::prepare_plans()
 	fftw_import_wisdom_from_filename("FFTW_Wisdom.dat");
 	kernel_plan = fftw_plan_dft_r2c_1d	( l_fft , (double*)ks_complex(0) 	, reinterpret_cast<fftw_complex*>(ks_complex(0)) 	, FFTW_EXHAUSTIVE);
 	g_plan = fftw_plan_dft_r2c_1d		( l_fft , gs[0] 					, reinterpret_cast<fftw_complex*>( fs[0] ) 			, FFTW_EXHAUSTIVE);
-	// h_plan = fftw_plan_dft_c2r_1d		( l_fft , reinterpret_cast<fftw_complex*>(hs(0)) , (double*)hs(0) 				, FFTW_EXHAUSTIVE); 
     int n[] = {(int)l_fft} ;
     h_plan = fftw_plan_many_dft_c2r( 
         1, // rank == 1D transform
@@ -183,16 +182,7 @@ void TimeQuad_FFT<double,DataType>::execute( Multi_array<DataType,1,uint64_t>& d
 	uint64_t l_data = 	data.get_n_i();
 	uint n_chunks 	=	compute_n_chunks	(l_data,l_chunk);
 	uint l_reste 	=	compute_l_reste		(l_data,l_chunk);
-    
-    // auto t1 = std::chrono::high_resolution_clock::now() ;
-    
-    // uint64_t tt_zeropad = 0 ;
-    // uint64_t tt_CopyAndCast = 0 ;
-    // uint64_t tt_rfft  = 0 ;
-    // uint64_t tt_prod  = 0 ;
-    // uint64_t tt_irfft = 0 ;
-    // uint64_t tt_toQs  = 0 ;
-    
+        
     if (l_reste != 0)
     {			
         for ( uint j = 0 ; j<n_prod ; j++ ) 
@@ -222,13 +212,13 @@ void TimeQuad_FFT<double,DataType>::execute( Multi_array<DataType,1,uint64_t>& d
         {            
             for(uint k=l_chunk; k  < l_fft ; k++ )
             {
-                gs(th_n,k) = 0; //zero pad
+                gs(th_n,k) = 0; 
             }
         }
         int this_thread = omp_get_thread_num();
         
         #pragma omp barrier
-		#pragma omp for
+		#pragma omp for nowait
 		for( uint i=0; i < n_chunks ; i++ )
 		{
             // #pragma GCC unroll n
@@ -238,11 +228,8 @@ void TimeQuad_FFT<double,DataType>::execute( Multi_array<DataType,1,uint64_t>& d
 				gs(this_thread,j) = (double)data[i*l_chunk + j] ; 
 			}			
 			fftw_execute_dft_r2c( g_plan, gs[this_thread] , reinterpret_cast<fftw_complex*>( fs[this_thread] ) );
-            // #pragma GCC unroll n
             for ( uint j = 0 ; j<n_prod ; j++ ) 
             {
-                // #pragma GCC unroll n
-                // #pragma GCC ivdep // unconditionally vectorize
                 for( uint k=0 ; k < (l_fft/2+1) ; k++ )
                 {	
                     hs(this_thread,j,k) = ks_complex(j,k) * fs(this_thread,k);
@@ -252,21 +239,15 @@ void TimeQuad_FFT<double,DataType>::execute( Multi_array<DataType,1,uint64_t>& d
             
             for ( uint j = 0 ; j<n_prod ; j++ ) 
             {    
-                // #pragma GCC unroll n
-                // #pragma GCC ivdep 
                 for( uint k=0; k < l_kernel-1 ; k++ )
                 {
                     #pragma omp atomic update
                     quads(j,i*l_chunk+k) += ( (double*)hs(this_thread,j))[k] ;
                 }
-                // #pragma GCC unroll n
-                // #pragma GCC ivdep 
                 for( uint k=l_kernel-1; k < l_chunk ; k++ )
                 {	
                     quads(j,i*l_chunk+k) = ( (double*)hs(this_thread,j))[k] ;
                 }
-                // #pragma GCC unroll n
-                // #pragma GCC ivdep 
                 for( uint k=l_chunk ; k < l_fft ; k++ )
                 {
                     #pragma omp atomic update
@@ -274,48 +255,39 @@ void TimeQuad_FFT<double,DataType>::execute( Multi_array<DataType,1,uint64_t>& d
                 }
             }
 		}
-	}
-	///// The rest ---->
-	if (l_reste != 0)
-	{	
-        // add the rest
-        uint k=0 ;
-		for(; k < l_reste ; k++ )
-		{
-			gs(0,k) = (double)data[n_chunks*l_chunk + k] ;
-		}
-        
-		for(; k < l_fft ; k++ )
-		{
-			gs(0,k) = 0 ;
-		}	
-		fftw_execute_dft_r2c(g_plan, gs[0] , reinterpret_cast<fftw_complex*>( fs[0]) );
-        for ( uint j = 0 ; j<n_prod ; j++ ) 
+        #pragma omp single
         {
-            complex_d tmp;
-            for( uint k=0; k < (l_fft/2+1) ; k++)
-            {
-                tmp = fs(0,k) ;
-                hs(0,0,k) = ks_complex(j,k) * tmp;
-            }
-            
-            fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(0,0)) , (double*)hs(0,0) );  
-        
-            for( uint k = 0 ; k < l_reste + l_kernel - 1 ; k++ )
-            {
-                quads(j,n_chunks*l_chunk+k) += ( (double*)hs(0,0))[k] ;
+            if (l_reste != 0)
+            {	
+                uint k=0 ;
+                for(; k < l_reste ; k++ )
+                {
+                    gs(this_thread,k) = (double)data[n_chunks*l_chunk + k] ;
+                }
+                
+                for(; k < l_fft ; k++ )
+                {
+                    gs(this_thread,k) = 0 ;
+                }	
+                fftw_execute_dft_r2c(g_plan, gs[this_thread] , reinterpret_cast<fftw_complex*>( fs[this_thread]) );
+                for ( uint j = 0 ; j<n_prod ; j++ ) 
+                {
+                    for( uint k=0; k < (l_fft/2+1) ; k++)
+                    {
+                        hs(this_thread,j,k) = ks_complex(j,k) * fs(this_thread,k);
+                    }
+                }
+                    fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(this_thread)) , (double*)hs(this_thread) );  
+                for ( uint j = 0 ; j<n_prod ; j++ ) 
+                {
+                    for( uint k = 0 ; k < l_reste + l_kernel - 1 ; k++ )
+                    {
+                        quads(j,n_chunks*l_chunk+k) += ( (double*)hs(this_thread,j))[k] ;
+                    }
+                }
             }
         }
-        
-        // uint64_t tt_Qs_reste = duration(t0,t1);
-        
-        // std::cout
-        // << "Total  = " <<(tt_Qs_reste+tt_zeropad+tt_CopyAndCast+tt_rfft+tt_prod+tt_irfft+tt_toQs)/1000000<< "[ms]\n"
-        // << "\t tt_Qs_reset " << tt_Qs_reste/1000 << "[us]\n" 
-        // << "\t (Zp, Cp, fft, prod, ifft, toQs ) \n" 
-        // << "\t ("<<tt_zeropad/1000000<<","<<tt_CopyAndCast/1000000<<","<<tt_rfft/1000000<<","<<tt_prod/1000000<<","<<tt_irfft/1000000<<","<<tt_toQs/1000000<<")\n";
 	}
-	/////
 }
 
 template<class DataType>
