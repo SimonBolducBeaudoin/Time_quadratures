@@ -12,6 +12,8 @@ using namespace pybind11::literals;
 
 #include <fftw3.h>
 
+#include <iostream>
+
 typedef unsigned int uint ;
 typedef std::complex<float> complex_f ;
 typedef std::complex<double> complex_d ;
@@ -59,10 +61,10 @@ class TimeQuad_FFT_to_Hist<double,BinType,DataType>
     void execute( Multi_array<DataType,1,uint64_t>& data );
     void execute_py(np_double& ks,py::array_t<DataType, py::array::c_style>& data);
         
-    // static py::array_t<double> abscisse_py( double max , uint nofbins );
+    static py::array_t<double> abscisse_py( double max , uint nofbins );
      
     // Returns only the valid part of the convolution
-    py::array_t<BinType,py::array::c_style> get_Histograms_py(); // Data are shared
+    py::array_t<BinType,py::array::c_style> get_Histograms_py(); // Data are copied
     void reset(); 
     
 	// Utilities
@@ -70,16 +72,15 @@ class TimeQuad_FFT_to_Hist<double,BinType,DataType>
     std::vector<ssize_t>  get_shape (np_double& ks);
 	uint compute_l_kernels			(np_double& ks);
     uint64_t compute_l_data 		(py::array_t<DataType, py::array::c_style>& data);
-    uint64_t compute_l_valid	( uint l_kernel, uint64_t l_data )	{ return l_data - l_kernel + 1 	;};
-    uint64_t compute_l_full	( uint l_kernel, uint64_t l_data )	{ return l_kernel + l_data - 1 	;};
+    uint64_t compute_l_valid	    (uint l_kernel, uint64_t l_data )	{ return l_data - l_kernel + 1 	;};
+    uint64_t compute_l_full	        (uint l_kernel, uint64_t l_data )	{ return l_kernel + l_data - 1 	;};
     Multi_array<double,2,uint32_t> copy_ks( np_double& np_ks, uint n_prod );
     
 	uint compute_l_chunk			( uint l_kernel ,  uint l_fft  )					{ return l_fft - l_kernel + 1 	;};
 	uint compute_n_chunks			( uint64_t l_data , uint l_chunk )					{ return l_data/l_chunk 		;};
 	uint compute_l_reste			( uint64_t l_data , uint l_chunk )					{ return l_data%l_chunk 		;};
+    uint compute_l_qs			    ( uint l_kernel, uint n_chunks )					{ return (n_chunks+1)*(l_kernel-1) 	;};
 	
-    
-    
 	private :
 
 	uint n_prod ;
@@ -88,8 +89,6 @@ class TimeQuad_FFT_to_Hist<double,BinType,DataType>
     uint64_t l_data ; //
     uint64_t l_valid ;
     uint64_t l_full  ;
-    Multi_array<double,2,uint32_t> ks ;
-	Multi_array<double,2,uint32_t> qs ;
     double dt ;
     uint l_fft; // Lenght(/number of elements) of the FFT used for FFT convolution
     uint nofbins ;
@@ -97,6 +96,14 @@ class TimeQuad_FFT_to_Hist<double,BinType,DataType>
     double bin_width ;
 	int n_threads ;
 	uint l_chunk ; // The length of a chunk
+    uint n_chunks ;
+    uint l_reste ;
+    uint l_qs ;
+    uint l_qs_chunk;
+    
+    Multi_array<double,2,uint32_t> ks ;
+    Multi_array<double,2> quads ;
+    
 	
 	fftw_plan kernel_plan;
 	fftw_plan g_plan;
@@ -104,10 +111,10 @@ class TimeQuad_FFT_to_Hist<double,BinType,DataType>
 	
 	// Pointers to all the complex kernels
 	Multi_array<complex_d,2,uint32_t> ks_complex; // [n_prod][frequency]
-	Multi_array<double,1,uint32_t> 		g ; // [frequency] Catches data from data*
-    Multi_array<complex_d,1,uint32_t> 	g_complex ;
-	Multi_array<complex_d,2,uint32_t> 	hs ; // [n_prod][frequency]
-    Multi_array<BinType,2,uint32_t> Hs ; // [n_prod][nofbins]
+	Multi_array<double,2,uint32_t> 		gs ; // [thread_num][frequency] Catches data from data*
+	Multi_array<complex_d,2,uint32_t> 	fs ; // [thread_num][frequency] Catches DFT of data
+	Multi_array<complex_d,3,uint32_t> 	hs ; // [n_prod][thread_num][frequency]
+    Multi_array<BinType,3,uint32_t> Hs ; // [n_prod][nofbins]
 	
     void checks();
 	void prepare_plans();

@@ -47,6 +47,7 @@ const char* s =
 	.def		("Histograms", 					&TimeQuad_FFT_to_Hist<FloatType,BinType,DataType>::get_Histograms_py			)\
     .def("reset", &TimeQuad_FFT_to_Hist<FloatType,BinType,DataType>::reset)\
     .def		("execute" , &TimeQuad_FFT_to_Hist<FloatType,BinType,DataType>::execute_py )\
+    .def_static("abscisse", &TimeQuad_FFT_to_Hist<FloatType,BinType,DataType>::abscisse_py, "max"_a.noconvert() , "nofbins"_a.noconvert() )\
 	;
 	
 void init_TimeQuad_FFT(py::module &m)

@@ -17,8 +17,6 @@ TimeQuad_FFT_to_Hist<double,BinType,DataType>::TimeQuad_FFT_to_Hist
     l_data      (compute_l_data(data))                  ,
     l_valid     ( compute_l_valid( l_kernel,l_data ) ),
     l_full      ( compute_l_full  ( l_kernel,l_data ) ) ,
-    ks          ( copy_ks(ks,n_prod) ) ,
-    qs		    ( Multi_array<double,2,uint32_t>( n_prod , l_kernel-1 )) ,
 	dt			(dt) 									, 
 	l_fft		(l_fft)									, 
     nofbins     (nofbins)                               ,
@@ -26,11 +24,17 @@ TimeQuad_FFT_to_Hist<double,BinType,DataType>::TimeQuad_FFT_to_Hist
     bin_width   (2.0*max/( nofbins ))                   , 
 	n_threads	(n_threads)								,
 	l_chunk		(compute_l_chunk(l_kernel,l_fft)) 		,
-    ks_complex	( Multi_array<complex_d,2,uint32_t>	(n_prod    ,(l_fft/2+1)	) ),
-	g			( Multi_array<double,1,uint32_t>    (2*(l_fft/2+1),fftw_malloc,fftw_free) ),
-    g_complex   ( Multi_array<complex_d,1,uint32_t>    ( (complex_d*)g.get_ptr(), l_fft/2+1 ) ),
-	hs          ( Multi_array<complex_d,2,uint32_t>	(n_prod    ,(l_fft/2+1),fftw_malloc,fftw_free) ),
-    Hs          ( Multi_array<BinType,2,uint32_t> 	(n_prod    ,nofbins,fftw_malloc,fftw_free) )
+    n_chunks 	(compute_n_chunks	(l_data,l_chunk))   ,
+	l_reste 	(compute_l_reste(l_data,l_chunk))       ,
+    l_qs        (compute_l_qs(l_kernel,n_chunks))       ,
+    l_qs_chunk  (l_kernel - 1 )                          ,
+    ks          ( copy_ks(ks,n_prod) )                  ,
+    quads		( Multi_array<double,2>( n_prod , l_qs )) ,
+    ks_complex	( Multi_array<complex_d,2,uint32_t>	(n_prod   ,(l_fft/2+1)	) ),
+	gs			( Multi_array<double,2,uint32_t>    (n_threads,2*(l_fft/2+1),fftw_malloc,fftw_free) ),
+    fs			( Multi_array<complex_d,2,uint32_t>	(n_threads,(l_fft/2+1)  ,fftw_malloc,fftw_free) ),
+	hs          ( Multi_array<complex_d,3,uint32_t>	(n_threads,n_prod    ,(l_fft/2+1),fftw_malloc,fftw_free) ),
+    Hs          ( Multi_array<BinType,3,uint32_t> 	(n_threads,n_prod    ,nofbins,fftw_malloc,fftw_free) )
 {
     checks();
 	prepare_plans();
@@ -60,8 +64,22 @@ void TimeQuad_FFT_to_Hist<double,BinType,DataType>::prepare_plans()
 {   
 	fftw_import_wisdom_from_filename("FFTW_Wisdom.dat");
 	kernel_plan = fftw_plan_dft_r2c_1d	( l_fft , (double*)ks_complex(0) 	, reinterpret_cast<fftw_complex*>(ks_complex(0)) 	, FFTW_EXHAUSTIVE);
-	g_plan = fftw_plan_dft_r2c_1d		( l_fft , g.get_ptr()					, reinterpret_cast<fftw_complex*>( g.get_ptr() ) 			, FFTW_EXHAUSTIVE);
-	h_plan = fftw_plan_dft_c2r_1d		( l_fft , reinterpret_cast<fftw_complex*>(hs(0)) , (double*)hs(0) 				, FFTW_EXHAUSTIVE); /* The c2r transform destroys its input array */
+	g_plan = fftw_plan_dft_r2c_1d		( l_fft , gs[0] 					, reinterpret_cast<fftw_complex*>( fs[0] ) 			, FFTW_EXHAUSTIVE);
+	int n[] = {(int)l_fft} ;
+    h_plan = fftw_plan_many_dft_c2r( 
+        1, // rank == 1D transform
+        n , //  list of dimensions 
+        n_prod  , // howmany (to do many ffts on the same core)
+        reinterpret_cast<fftw_complex*>(hs(0,0)), // input
+        NULL , // inembed
+        1 , // istride
+        l_fft/2 + 1 , // idist
+        (double*)hs(0,0) ,  // output
+        NULL , //  onembed
+        1 , // ostride
+        2*(l_fft/2+1) , // odist
+        FFTW_EXHAUSTIVE
+        ); 
 	fftw_export_wisdom_to_filename("FFTW_Wisdom.dat"); 
 }
 
@@ -167,176 +185,120 @@ void TimeQuad_FFT_to_Hist<double,BinType,DataType>::execute_py(np_double& ks, py
 }
 
  
-#define ACCUMULATE(J,DATA,L_DATA)\
+#define ACCUMULATE(N_TH,J,DATA,L_DATA)\
 { \
-	BinType* histogram_local = Hs[J] ;\
-    /*#pragma omp for reduction(+:histogram_local[:nofbins])*/\
-    for (uint32_t i=0; i<L_DATA; i++) \
+	BinType* histogram_local = Hs(N_TH,J) ;\
+    for (uint32_t m=0; m<L_DATA; m++) \
     { \
-        float_to_hist( *((double*)(((char*)DATA)+(sizeof(double)*i))) , histogram_local , max , bin_width );\
+        float_to_hist( *(DATA+m) , histogram_local , max , bin_width );\
     } \
 } 
 
 template<class BinType,class DataType>					
 void TimeQuad_FFT_to_Hist<double,BinType,DataType>::execute( Multi_array<DataType,1,uint64_t>& data )
-{	
-	uint64_t l_data = 	data.get_n_i();
-	uint n_chunks 	=	compute_n_chunks	(l_data,l_chunk);
-	uint l_reste 	=	compute_l_reste		(l_data,l_chunk);
-
-	///////////////////////
-    // COMPUTE PS AND QS //
-    ///////////////////////
+{	        
+    #pragma omp parallel
     {
-        // #pragma omp single
-        {
-            uint i=0 ;
-            uint j=0 ;
-            for(; j < l_chunk ; j++ )
-            {
-                g(j) = (double)data[i*l_chunk + j] ;
-            }
-            for(; j < l_fft ; j++ )
-            {
-                g(j) = 0.0 ; 
-            }
-            fftw_execute_dft_r2c( g_plan, g.get_ptr() , reinterpret_cast<fftw_complex*>(g.get_ptr()) );
-        }    
-        // #pragma omp for
+        manage_thread_affinity();
+        #pragma omp for simd collapse(2) nowait
         for ( uint j = 0 ; j<n_prod ; j++ ) 
-        {
-            // #pragma omp for
-            for( uint k=0 ; k < (l_fft/2+1) ; k++ )
+        {  
+            for( uint i=0; i < (n_chunks+1)*l_qs_chunk ; i++ )
             {	
-                hs(j,k) = ks_complex(j,k) * g_complex(k);
-            } 
-            fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(j)) , (double*)hs(j));
-            ACCUMULATE(j,((double*)hs[j])+l_kernel-1,l_chunk-l_kernel+1);
-            // #pragma omp for
-            for( uint k=0; k < l_kernel-1 ; k++ )
-            {
-                qs(j,k) = ( (double*)hs(j))[l_chunk+k] ;
-            }
-        }               
-    }
-    for( uint i=1; i < n_chunks-1 ; i++ )
-    {
-        // #pragma omp single
-        {
-            uint j=0 ;
-            for(; j < l_chunk ; j++ )
-            {
-                g(j) = (double)data[i*l_chunk + j] ;
-            }
-            for(; j < l_fft ; j++ )
-            {
-                g(j) = 0.0 ; 
-            }
-            fftw_execute_dft_r2c( g_plan, g.get_ptr() , reinterpret_cast<fftw_complex*>(g.get_ptr()) );
+                quads(j,i) = 0.0 ;
+            }	
         }
-        #pragma omp parallel
-        {	
-            manage_thread_affinity();
-            #pragma omp for
+        int this_thread = omp_get_thread_num();          
+        for(uint k=l_chunk; k  < l_fft ; k++ )
+        {
+            gs(this_thread,k) = 0;
+        }
+        #pragma omp barrier
+		#pragma omp for nowait
+		for( uint i=0; i < n_chunks ; i++ )
+		{
+			for(uint j=0 ; j < l_chunk ; j++ )
+			{
+				gs(this_thread,j) = (double)data[i*l_chunk + j] ; 
+			}			
+			fftw_execute_dft_r2c( g_plan, gs[this_thread] , reinterpret_cast<fftw_complex*>( fs[this_thread] ) );
             for ( uint j = 0 ; j<n_prod ; j++ ) 
             {
-                // #pragma omp for
                 for( uint k=0 ; k < (l_fft/2+1) ; k++ )
                 {	
-                    hs(j,k) = ks_complex(j,k) * g_complex(k);
-                } 
-                fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(j)) , (double*)hs(j));
-                // #pragma omp for
-                for( uint k=0; k < l_kernel-1 ; k++ )
-                {
-                    ( (double*)hs(j))[k] += qs(j,k) ;
-                }
-                ACCUMULATE(j, (double*)hs[j],l_chunk);
-                // #pragma omp for
-                for( uint k=0; k < l_kernel-1 ; k++ )
-                {
-                    qs(j,k) = ( (double*)hs(j))[l_chunk+k] ;
-                }
-            }
-        }
-    }  
-    {
-        // #pragma omp single
-        {
-            uint i=n_chunks-1 ;
-            uint j=0 ;
-            for(; j < l_chunk ; j++ )
-            {
-                g(j) = (double)data[i*l_chunk + j] ;
-            }
-            for(; j < l_fft ; j++ )
-            {
-                g(j) = 0.0 ; 
-            }
-            fftw_execute_dft_r2c( g_plan, g.get_ptr() , reinterpret_cast<fftw_complex*>(g.get_ptr()) );
-        }
-        // #pragma omp for
-        for ( uint j = 0 ; j<n_prod ; j++ ) 
-        {
-            //#pragma omp for
-            for( uint k=0 ; k < (l_fft/2+1) ; k++ )
-            {	
-                hs(j,k) = ks_complex(j,k) * g_complex(k);
+                    hs(this_thread,j,k) = ks_complex(j,k) * fs(this_thread,k);
+                }  
             } 
-            fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(j)) , (double*)hs(j));
-            //#pragma omp for
-            for( uint k=0; k < l_kernel-1 ; k++ )
-            {
-                ( (double*)hs(j))[k] += qs(j,k) ;
-            }
-            ACCUMULATE(j, (double*)hs[j], l_chunk);
-            //#pragma omp for // Pour le reste s'il y en a un 
-            for( uint k=0; k < l_kernel-1 ; k++ )
-            {
-                qs(j,k) = ( (double*)hs(j))[l_chunk+k] ;
-            }                
-        }
-    }
-	///// The rest ---->
-	if (l_reste != 0)
-	{	
-        uint k=0 ;
-		for(; k < l_reste ; k++ )
-		{
-			g(k) = (double)data[n_chunks*l_chunk + k] ;
-		}
-		// make sure g only contains zeros
-		for(; k < l_fft ; k++ )
-		{
-			g(k) = 0 ;
-		}	
-		fftw_execute_dft_r2c(g_plan, g.get_ptr() , reinterpret_cast<fftw_complex*>( g_complex.get_ptr() ) );
-		// Product 
-        for ( uint j = 0 ; j<n_prod ; j++ ) 
-        {
-            for( uint k=0; k < (l_fft/2+1) ; k++)
-            {
-                hs(j,k) = ks_complex(j,k) * g_complex(k);
-            }   
-            fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(j)) , (double*)hs(j) );  
-        
-            // Select only the part of the ifft that contributes to the valid lenght
-            for( uint k = 0 ; k < l_reste ; k++ )
-            {
-                ( (double*)hs(j))[k] += qs(j,k) ;
-            }
+            fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(this_thread)) , (double*)hs(this_thread) );   
             
-            { 
-            uint J = j; double* DATA = (double*)hs[j]; uint32_t L_DATA = l_reste ;
-            BinType* histogram_local = Hs[J] ;
-            for (uint32_t i=0; i<L_DATA; i++) 
-            { 
-                float_to_hist( *((double*)(((char*)DATA)+(sizeof(double)*i))) , histogram_local , max , bin_width );
-            } 
-        } 
+            for ( uint j = 0 ; j<n_prod ; j++ ) 
+            {    
+                ACCUMULATE(this_thread,j, ((double*)hs(this_thread,j)) + l_qs_chunk , l_fft - 2*l_qs_chunk)
+            }
+            for ( uint j = 0 ; j<n_prod ; j++ ) 
+            {    
+                for( uint k=0; k < l_qs_chunk; k++ )
+                {
+                    #pragma omp atomic update
+                    quads(j,i*l_qs_chunk+k) += ( (double*)hs(this_thread,j))[k] ;
+                    #pragma omp atomic update
+                    quads(j,(i+1)*l_qs_chunk+k) += ( (double*)hs(this_thread,j))[l_chunk+k] ;
+                }
+            }
+		}
+        #pragma omp single
+        {
+            if (l_reste != 0)
+            {	
+                uint k=0 ;
+                for(; k < l_reste ; k++ )
+                {
+                    gs(this_thread,k) = (double)data[n_chunks*l_chunk + k] ;
+                }
+                
+                for(; k < l_fft ; k++ )
+                {
+                    gs(this_thread,k) = 0 ;
+                }	
+                fftw_execute_dft_r2c(g_plan, gs[this_thread] , reinterpret_cast<fftw_complex*>( fs[this_thread]) );
+                for ( uint j = 0 ; j<n_prod ; j++ ) 
+                {
+                    for( uint k=0; k < (l_fft/2+1) ; k++)
+                    {
+                        hs(this_thread,j,k) = ks_complex(j,k) * fs(this_thread,k);
+                    }
+                }
+                fftw_execute_dft_c2r(h_plan , reinterpret_cast<fftw_complex*>(hs(this_thread)) , (double*)hs(this_thread) );   
+                for ( uint j = 0 ; j<n_prod ; j++ ) 
+                {
+                    for( uint k = 0 ; k < l_kernel - 1 ; k++ )
+                    {
+                        ( (double*)hs(this_thread,j))[k] += quads(j,(n_chunks)*l_qs_chunk+k);
+                    }
+                    ACCUMULATE(this_thread,j,(double*)hs(this_thread,j),l_reste)
+                }
+            }
+        }
+        #pragma omp barrier
+        #pragma omp for simd
+        for ( uint j = 0 ; j<n_prod ; j++ ) 
+        {  
+            ACCUMULATE(this_thread,j,quads(j)+l_qs_chunk,(n_chunks-1)*l_qs_chunk)
+        }
+        // reduction
+        if (this_thread != 0)
+        {
+            for (uint j=0; j<n_prod; j++)
+            {
+                for (uint i=0; i<nofbins; i++)
+                {
+                    #pragma omp atomic update
+                    Hs(0,j,i) += Hs(this_thread,j,i) ;
+                    Hs(this_thread,j,i) = 0 ;
+                }
+            }
         }
 	}
-	/////
 }
 
 template<class BinType,class DataType>
@@ -348,11 +310,14 @@ inline void TimeQuad_FFT_to_Hist<double,BinType,DataType>::float_to_hist( double
 template<class BinType,class DataType>
 void TimeQuad_FFT_to_Hist<double,BinType,DataType>::reset()
 {
-    for (uint j=0; j<n_prod; j++)
+    for (uint n=0; n<(uint)n_threads; n++)
     {
-        for (uint i=0; i<nofbins; i++)
+        for (uint j=0; j<n_prod; j++)
         {
-            Hs(j,i) = 0 ;
+            for (uint i=0; i<nofbins; i++)
+            {
+                Hs(n,j,i) = 0 ;
+            }
         }
     }
 }
@@ -360,9 +325,6 @@ void TimeQuad_FFT_to_Hist<double,BinType,DataType>::reset()
 template<class BinType,class DataType>
 py::array_t<BinType,py::array::c_style>  TimeQuad_FFT_to_Hist<double,BinType,DataType>::get_Histograms_py()
 {
-	BinType* ptr = Hs[0] ;
-	py::capsule capsule_dummy(	ptr, [](void *f){;} );
-	
     std::vector<ssize_t> shape_Hs = ks_shape ;
     shape_Hs.pop_back() ;
     shape_Hs.push_back(uint(nofbins)) ;
@@ -378,11 +340,29 @@ py::array_t<BinType,py::array::c_style>  TimeQuad_FFT_to_Hist<double,BinType,Dat
     strides.push_back(prod * sizeof(BinType));
     }
     
+    BinType* ptr = Hs[0] ;
+    size_t num_bytes = shape_Hs[0]*strides[0];
+    BinType* new_array = (BinType*)malloc( num_bytes );
+    memcpy ( (void*)new_array, (void*)ptr, num_bytes ) ;
+    py::capsule capsule(new_array,free);
+    
 	return py::array_t<BinType, py::array::c_style>
 	(
 		shape_Hs,      // shape
-		strides,   // C-style contiguous strides for double
-		ptr  ,       // the data pointer
-		capsule_dummy // numpy array references this parent
+		strides,   // C-style contiguous strides 
+		new_array  ,       // the data pointer
+		capsule // numpy array references this parent
 	);
+}
+
+template<class BinType,class DataType>
+py::array_t<double> TimeQuad_FFT_to_Hist<double,BinType,DataType>::abscisse_py( double max, uint nofbins )
+{
+	double bin_width = 2.0*max/( nofbins );
+	Multi_array<double,1> abscisse(nofbins) ;	
+    for(uint64_t i = 0; i < nofbins; i++)
+    {
+        abscisse[i] = ( (i + 0.5)*bin_width )- max ; 
+    }
+	return abscisse.move_py();
 }
