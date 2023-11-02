@@ -15,7 +15,7 @@ TimeQuad_FFT<float,DataType>::TimeQuad_FFT
     l_data      (compute_l_data(data))                  ,
     l_valid( compute_l_valid( l_kernel,l_data ) ),
     l_full( compute_l_full  ( l_kernel,l_data ) ) ,
-    ks( copy_ks(ks,n_prod) ) ,
+    ks          ( copy_ks(ks,n_prod) ) ,
     quads		( Multi_array<float,2>( n_prod , l_full ,fftwf_malloc,fftwf_free))       ,
 	dt			(dt) 									, 
 	l_fft		(l_fft)									, 
@@ -24,7 +24,7 @@ TimeQuad_FFT<float,DataType>::TimeQuad_FFT
     ks_complex	( Multi_array<complex_f,2,uint32_t>	(n_prod    ,(l_fft/2+1)	         ,fftwf_malloc,fftwf_free) ),
 	gs			( Multi_array<float,2,uint32_t>		(n_threads ,2*(l_fft/2+1)        ,fftwf_malloc,fftwf_free) ),
 	fs			( Multi_array<complex_f,2,uint32_t>	(n_threads ,(l_fft/2+1)          ,fftwf_malloc,fftwf_free) ),
-	hs          ( Multi_array<complex_f,3,uint32_t>	(n_prod    ,n_threads,(l_fft/2+1),fftwf_malloc,fftwf_free) )
+	hs          ( Multi_array<complex_f,3,uint32_t>	(n_threads,n_prod,(l_fft/2+1),fftwf_malloc,fftwf_free) )
 {
     checks();
 	prepare_plans();
@@ -53,11 +53,26 @@ void TimeQuad_FFT<float,DataType>::checks()
 template<class DataType>
 void TimeQuad_FFT<float,DataType>::prepare_plans()
 {   
-	fftwf_import_wisdom_from_filename("fftwf_Wisdom.dat");
+	fftwf_import_wisdom_from_filename("FFTWF_Wisdom.dat");
 	kernel_plan = fftwf_plan_dft_r2c_1d	( l_fft , (float*)ks_complex(0) 	, reinterpret_cast<fftwf_complex*>(ks_complex(0)) 	, FFTW_EXHAUSTIVE);
-	g_plan = fftwf_plan_dft_r2c_1d		( l_fft , gs[0] 					, reinterpret_cast<fftwf_complex*>( gs[0] ) 			, FFTW_EXHAUSTIVE);
-	h_plan = fftwf_plan_dft_c2r_1d		( l_fft , reinterpret_cast<fftwf_complex*>(hs(0,0)) , (float*)hs(0,0) 				, FFTW_EXHAUSTIVE); /* The c2r transform destroys its input array */
-	fftwf_export_wisdom_to_filename("fftwf_Wisdom.dat"); 
+	g_plan = fftwf_plan_dft_r2c_1d		( l_fft , gs[0] 					, reinterpret_cast<fftwf_complex*>( fs[0] ) 			, FFTW_EXHAUSTIVE);
+	// h_plan = fftwf_plan_dft_c2r_1d		( l_fft , reinterpret_cast<fftwf_complex*>(hs(0)) , (float*)hs(0) 				, FFTW_EXHAUSTIVE); /* The c2r transform destroys its input array */
+    int n[] = {(int)l_fft} ;
+    h_plan = fftwf_plan_many_dft_c2r( 
+        1, // rank == 1D transform
+        n , //  list of dimensions 
+        n_prod  , // howmany (to do many ffts on the same core)
+        reinterpret_cast<fftwf_complex*>(hs(0,0)), // input
+        NULL , // inembed
+        1 , // istride
+        l_fft/2 + 1 , // idist
+        (float*)hs(0,0) ,  // output
+        NULL , //  onembed
+        1 , // ostride
+        2*(l_fft/2+1) , // odist
+        FFTW_EXHAUSTIVE
+        );                        
+	fftwf_export_wisdom_to_filename("FFTWF_Wisdom.dat"); 
 }
 
 template<class DataType>
@@ -164,152 +179,116 @@ void TimeQuad_FFT<float,DataType>::execute_py(np_double& ks, py::array_t<DataTyp
 	execute( data );
 }
 
-#include <iostream>
-
 template<class DataType>					
 void TimeQuad_FFT<float,DataType>::execute( Multi_array<DataType,1,uint64_t>& data )
 {	
 	uint64_t l_data = 	data.get_n_i();
 	uint n_chunks 	=	compute_n_chunks	(l_data,l_chunk);
 	uint l_reste 	=	compute_l_reste		(l_data,l_chunk);
-
-    /////////////////////
-    // RESET PS AND QS //
-    /////////////////////
-	#pragma omp parallel
-    {
-        manage_thread_affinity();
-        // Reset ps and qs to 0
-        // Only the parts that are subject to race conditions
-        /*
-            Possible optimizations :
-                - Inverse i and j loop
-                - Use collapse of nested loops : https://pages.tacc.utexas.edu/~eijkhout/pcse/html/omp-loop.html
-                - SIMD instructions : https://www.openmp.org/spec-html/5.0/openmpsu42.html
-        */
-        
-        #pragma omp for simd collapse(3)
-        for ( uint j = 0 ; j<n_prod ; j++ ) 
-        {  
-            for( uint i=0; i < n_chunks-1 ; i++ )
-            {	
-                // Last l_kernel-1.0 points
-                // Subject to race conditions
-                for( uint k=l_chunk ; k < l_fft; k++ )
-                {	
-                    quads(j,i*l_chunk+k) = 0.0 ;
-                }
-            }	
-        }
-    }
-	if (l_reste != 0)
+    if (l_reste != 0)
 	{			
-		// Product 
         for ( uint j = 0 ; j<n_prod ; j++ ) 
         {
-            // Select only the part of the ifft that contributes to the full output length
             for( uint k = 0 ; k < l_reste + l_kernel - 1 ; k++ )
             {
                 quads(j,n_chunks*l_chunk+k) = 0.0 ;
             }
         }
 	}
-	///////////////////////
-    // COMPUTE PS AND QS //
-    ///////////////////////
 	#pragma omp parallel
-	{	
-		manage_thread_affinity();
-             
-		int this_thread = omp_get_thread_num();
-		for(uint k=l_chunk; k  < l_fft ; k++ )
-        {
-            gs(this_thread,k) = 0; //zero pad
+    {
+        manage_thread_affinity();
+        #pragma omp for simd collapse(3) nowait
+        for ( uint j = 0 ; j<n_prod ; j++ ) 
+        {  
+            for( uint i=0; i < n_chunks-1 ; i++ )
+            {	
+                for( uint k=l_chunk ; k < l_fft; k++ )
+                {	
+                    quads(j,i*l_chunk+k) = 0.0 ;
+                }
+            }	
         }
-	//// Loop on chunks ---->
+        #pragma omp for simd collapse(2) nowait
+		for( int th_n=0; th_n<n_threads; th_n++ )  
+        {            
+            for(uint k=l_chunk; k  < l_fft ; k++ )
+            {
+                gs(th_n,k) = 0; 
+            }
+        }
+        int this_thread = omp_get_thread_num();
+        #pragma omp barrier
+        
 		#pragma omp for
 		for( uint i=0; i < n_chunks ; i++ )
 		{
-			///// THIS ONLY ONCE
-			// fft_data ///
             for(uint j=0 ; j < l_chunk ; j++ )
 			{
-				gs(this_thread,j) = (float)data[i*l_chunk + j] ; // Cast data to double
-			}
-			
+				gs(this_thread,j) = (float)data[i*l_chunk + j] ; 
+			}			
 			fftwf_execute_dft_r2c( g_plan, gs[this_thread] , reinterpret_cast<fftwf_complex*>( fs[this_thread] ) );
-			
-			/////
-			
-			///// FOR EACH KERNELS 
             for ( uint j = 0 ; j<n_prod ; j++ ) 
             {
-                // Product	
+                // #pragma GCC unroll 16
+                // #pragma GCC ivdep // unconditionally vectorize
                 for( uint k=0 ; k < (l_fft/2+1) ; k++ )
                 {	
-                    hs(j,this_thread,k) = ks_complex(j,k) * fs(this_thread,k);
-                }  
-                // ifft
-                fftwf_execute_dft_c2r(h_plan , reinterpret_cast<fftwf_complex*>(hs(j,this_thread)) , (float*)hs(j,this_thread) );   
-                
-                // First l_kernel-1.0 points
-                // Subject to race conditions
+                    hs(this_thread,j,k) = ks_complex(j,k) * fs(this_thread,k);
+                }
+            }                                                
+            fftwf_execute_dft_c2r(h_plan , reinterpret_cast<fftwf_complex*>(hs(this_thread)) , (float*)hs(this_thread) );                           
+            for ( uint j = 0 ; j<n_prod ; j++ ) 
+            {                                  
                 for( uint k=0; k < l_kernel-1 ; k++ )
                 {
                     #pragma omp atomic update
-                    quads(j,i*l_chunk+k) += ( (float*)hs(j,this_thread))[k] ;
+                    quads(j,i*l_chunk+k) += ( (float*)hs(this_thread,j))[k] ;
                 }
-                // Copy result to p and q 
-                // Not subject to race conditions
                 for( uint k=l_kernel-1; k < l_chunk ; k++ )
                 {	
-                    quads(j,i*l_chunk+k) = ( (float*)hs(j,this_thread))[k] ;
+                    quads(j,i*l_chunk+k) = ( (float*)hs(this_thread,j))[k] ;
                 }
-                // Last l_kernel-1.0 points
-                // Subject to race conditions
                 for( uint k=l_chunk ; k < l_fft ; k++ )
                 {
                     #pragma omp atomic update
-                    quads(j,i*l_chunk+k) += ( (float*)hs(j,this_thread))[k] ;
+                    quads(j,i*l_chunk+k) += ( (float*)hs(this_thread,j))[k] ;
                 }
             }
-		}
-	}
-	///// The rest ---->
-	if (l_reste != 0)
-	{	
-        // add the rest
-        uint k=0 ;
-		for(; k < l_reste ; k++ )
-		{
-			gs(0,k) = (float)data[n_chunks*l_chunk + k] ;
-		}
-		// make sure g only contains zeros
-		for(; k < l_fft ; k++ )
-		{
-			gs(0,k) = 0 ;
-		}	
-		fftwf_execute_dft_r2c(g_plan, gs[0] , reinterpret_cast<fftwf_complex*>( fs[0]) );
-		// Product 
-        for ( uint j = 0 ; j<n_prod ; j++ ) 
+        }
+        #pragma omp single
         {
-            complex_f tmp;
-            for( uint k=0; k < (l_fft/2+1) ; k++)
-            {
-                tmp = fs(0,k) ;
-                hs(j,0,k) = ks_complex(j,k) * tmp;
-            }
-            
-            fftwf_execute_dft_c2r(h_plan , reinterpret_cast<fftwf_complex*>(hs(j,0)) , (float*)hs(j,0) );  
-        
-            // Select only the part of the ifft that contributes to the full output length
-            for( uint k = 0 ; k < l_reste + l_kernel - 1 ; k++ )
-            {
-                quads(j,n_chunks*l_chunk+k) += ( (float*)hs(j,0))[k] ;
+            if (l_reste != 0)
+            {	
+                uint k=0 ;
+                for(; k < l_reste ; k++ )
+                {
+                    gs(this_thread,k) = (float)data[n_chunks*l_chunk + k] ;
+                }
+                
+                for(; k < l_fft ; k++ )
+                {
+                    gs(this_thread,k) = 0 ;
+                }	
+                fftwf_execute_dft_r2c(g_plan, gs[this_thread] , reinterpret_cast<fftwf_complex*>( fs[this_thread]) );
+                for ( uint j = 0 ; j<n_prod ; j++ ) 
+                {
+                    for( uint k=0; k < (l_fft/2+1) ; k++)
+                    {
+                        hs(this_thread,j,k) = ks_complex(j,k) * fs(this_thread,k);
+                    }
+                }
+                    fftwf_execute_dft_c2r(h_plan , reinterpret_cast<fftwf_complex*>(hs(this_thread)) , (float*)hs(this_thread) );  
+                for ( uint j = 0 ; j<n_prod ; j++ ) 
+                {
+                    for( uint k = 0 ; k < l_reste + l_kernel - 1 ; k++ )
+                    {
+                        quads(j,n_chunks*l_chunk+k) += ( (float*)hs(this_thread,j))[k] ;
+                    }
+                }
             }
         }
 	}
-	/////
 }
 
 template<class DataType>
