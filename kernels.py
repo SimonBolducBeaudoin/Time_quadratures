@@ -6,6 +6,7 @@ import numba as _nb
 from scipy.signal.windows import tukey as _tukey
 
 from ..Math_extra.special_functions import FresnelCos, FresnelSin
+from betas import f_bar
 
 def gen_freq(n,dt):
     return _np.fft.rfftfreq(n,dt)
@@ -30,12 +31,15 @@ def _kq(t,dt):
     else :
         return _np.sign(t)* 2.0 / _np.sqrt(_np.abs(t)) * FresnelSin(_np.sqrt(2.0 * _np.abs(t) / dt))
 
-@_nb.vectorize([_nb.float64(_nb.float64, _nb.float64)])
-def _delta(t,dt):
-    if t == 0 :
-        return 1.0/dt ;
-    else :
-        return 0.0
+# @_nb.vectorize([_nb.float64(_nb.float64,_nb.float64,_nb.float64,_nb.float64)])
+# def _delta(t,dt,Theta=None,Z=50.0):
+    # """
+    # special delta function that as the same units as k_Theta
+    # """
+    # if t == 0 : 
+        # return 1.0/( _np.sqrt(Z*_C.h)*dt ) ;
+    # else :
+        # return 0.0
 
 @_nb.guvectorize([(_nb.float64[:],_nb.float64,_nb.float64[:])], '(n),()->(n)')
 def kp(t,Z=50.0,res=None):
@@ -82,14 +86,13 @@ def k_Theta(t,Theta,Z=50.0,res=None):
     --------
     res : 1D numpy.ndarray, _nb.float64
     """
-    K = _np.sqrt( 1.0/ (Z*_C.h) ) 
     dt = _np.abs(t[1]-t[0])
     res[:] = _k_Theta(t[:],dt,Theta,Z)
 
-@_nb.guvectorize([(_nb.float64[:],_nb.float64[:])], '(n)->(n)')
-def delta(t,res=None):
+@_nb.guvectorize([(_nb.float64[:],_nb.float64,_nb.float64,_nb.float64[:])], '(n),(),()->(n)')
+def delta(t,Theta,Z=50.0,res=None):
     dt = _np.abs(t[1]-t[0])
-    res[:] = _delta(t[:],dt)
+    res[:] = 1.0/( _np.sqrt(Z*_C.h)*dt)
 
 @_nb.jit
 def generate_a_tukey_window(ks,alpha=0.5):
@@ -122,22 +125,34 @@ def apply_filters(ks,filters):
     n = ks.shape[-1]
     return _np.fft.fftshift( _np.fft.irfft( _np.fft.rfft(_np.fft.ifftshift(ks,axes=-1))*filters,n),axes=-1 )
 
-def make_kernels(t,betas,g=None,window=True,alpha=0.5,Z=50.,Theta=0.,half_norm=True):
+def make_kernels(t,betas,g=None,window=True,alpha=0.5,Z=50.,Theta=0.,half_norm=True,Voltage_modes=False):
     dt = abs(t[1]-t[0])
-    ks = k_Theta(t,Theta,Z)
-    if window is True :
-        T = _tukey(ks.shape[-1],alpha=alpha)
-        ks = ks*T
-    if g is not None :
-        filters = betas/g
+    
+    if Voltage_modes :
+        ks   = delta(t,Theta,Z)
+        if g is not None :
+            filters = betas/g
+        else :
+            filters = betas            
+        n = ks.shape[-1]
+        filters =  _np.fft.fftshift( _np.fft.irfft(filters,n),axes=-1 ) # beta(t)       
+        ks = ks*filters 
+        freq = gen_freq(len(t),dt)
+        fbar = f_bar(betas,freq)
+        ks  /= ( _np.sqrt( fbar[...,None] )  ) # ks = 1/ ( sqrt(Zh |fbar|) delta_t ) * beta(t)
     else :
-        filters = betas
-    ks = apply_filters(ks,filters)
+        ks = k_Theta(t,Theta,Z)
+        if window is True :
+            T = _tukey(ks.shape[-1],alpha=alpha)
+            ks = ks*T
+        if g is not None :
+            filters = betas/g
+        else :
+            filters = betas
+        ks = apply_filters(ks,filters)
     if half_norm :
         ks, hn = half_normalization(ks,dt)
     else :
         hn = None
     return ks, hn
     
-
-

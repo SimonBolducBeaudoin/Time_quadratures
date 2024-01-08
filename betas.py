@@ -14,6 +14,13 @@ def normalize(beta,df,res):
     """
     res[:] = beta[:]/(  _np.sqrt(2*df*( _np.abs(beta[:])**2 ).sum() ) )
     
+def f_bar(betas,freq):
+    """
+    I couldn't implement it in numba for some reason ..?
+    """
+    df = freq[1] - freq[0]
+    return ( freq* (_np.abs(betas)**2) ).sum(axis=-1)*2*df
+        
 @_nb.vectorize([_nb.float64(_nb.float64,_nb.float64,_nb.float64)])
 def _gaussian (x,mu=0.0,sigma=1.0) :
     return _np.exp( (-(x-mu)**2)/(2.0*sigma**2) )
@@ -33,7 +40,7 @@ def bigaussian(f,p1,p2,res):
     res[:] = _np.exp(1j*phi1)*_gaussian (f[:],f1_m,f1_s) + _np.exp(1j*phi2)*_gaussian (f[:],f2_m,f2_s)
     res[:] = res[:]/(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) ) # normalization
      
-@_nb.guvectorize([(_nb.float64[:],_nb.float64[:,:],_nb.complex128[:])], '(n),(l,m)->(n)') 
+@_nb.guvectorize([(_nb.float64[:],_nb.complex128[:,:],_nb.complex128[:])], '(n),(l,m)->(n)') 
 def multigaussian(f,ps,res):
     """
     multigaussian(f,ps)
@@ -44,8 +51,8 @@ def multigaussian(f,ps,res):
     f : numpy.ndarray, float64[:]
         Array of input values for the independent variable.
 
-    ps : numpy.ndarray, float64[:, :]
-        Array of Gaussian function parameters with shape (l, m), where 'l' is the number of Gaussian functions and 'm' is the number of parameters for each Gaussian function. Each row of 'ps' should contain three values: mean, standard deviation, and phase.
+    ps : numpy.ndarray, complex128[:, :]
+        Array of Gaussian function parameters with shape (l, m), where 'l' is the number of Gaussian functions and 'm' is the number of parameters for each Gaussian function. Each row of 'ps' should contain three values: mean, standard deviation and prefactor.
         
     Returns:
     --------
@@ -61,7 +68,7 @@ def multigaussian(f,ps,res):
     df = f[1]-f[0]
     res[:] = 0
     for i in range(ps.shape[0]) :
-        res[:] += _np.exp(1j*ps[i,2])*_gaussian(f[:],ps[i,0],ps[i,1])
+        res[:] += ps[i,2]*_gaussian(f[:],_np.abs(ps[i,0]),_np.abs(ps[i,1]))
     res[:] = res[:]/(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) ) # normalization
     
 @_nb.guvectorize([(_nb.float64[:],_nb.float64[:],_nb.complex128[:])], '(n),(l)->(n)')
