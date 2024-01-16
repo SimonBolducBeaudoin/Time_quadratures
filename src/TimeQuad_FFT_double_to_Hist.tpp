@@ -178,7 +178,10 @@ template<class BinType,class DataType>
 void TimeQuad_FFT_to_Hist<double,BinType,DataType>::execute_py(np_double& ks, py::array_t<DataType, py::array::c_style>& np_data)
 {
 	execution_checks( ks,np_data );
-    omp_set_num_threads(n_threads); // Makes sure the declared number of thread if the same as planned
+    if (omp_get_num_threads() != n_threads)  // Makes sure the declared number of thread if the same as planned
+	{	
+        omp_set_num_threads(n_threads);
+    }
     prepare_kernels(ks);
     Multi_array<DataType,1,uint64_t> data = Multi_array<DataType,1,uint64_t>::numpy_share(np_data) ;
 	execute( data );
@@ -197,7 +200,7 @@ void TimeQuad_FFT_to_Hist<double,BinType,DataType>::execute_py(np_double& ks, py
 template<class BinType,class DataType>					
 void TimeQuad_FFT_to_Hist<double,BinType,DataType>::execute( Multi_array<DataType,1,uint64_t>& data )
 {	        
-    #pragma omp parallel
+    #pragma omp parallel num_threads(n_threads)
     {
         manage_thread_affinity();
         #pragma omp for simd collapse(2) nowait
