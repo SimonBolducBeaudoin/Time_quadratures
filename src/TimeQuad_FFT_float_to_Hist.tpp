@@ -7,7 +7,7 @@ TimeQuad_FFT_to_Hist<float,BinType,DataType>::TimeQuad_FFT_to_Hist
 	float dt , 
 	uint  l_fft ,
     uint nofbins ,
-    float max,    
+    double max,    
 	int n_threads 
 )
 :
