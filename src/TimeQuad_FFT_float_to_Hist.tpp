@@ -31,10 +31,10 @@ TimeQuad_FFT_to_Hist<float,BinType,DataType>::TimeQuad_FFT_to_Hist
     ks          ( copy_ks(ks,n_prod) )                  ,
     quads		( Multi_array<float,2>( n_prod , l_qs )) ,
     ks_complex	( Multi_array<complex_f,2,uint32_t>	(n_prod   ,(l_fft/2+1)	) ),
-	gs			( Multi_array<float,2,uint32_t>    (n_threads,2*(l_fft/2+1),fftwf_malloc,fftwf_free) ),
-    fs			( Multi_array<complex_f,2,uint32_t>	(n_threads,(l_fft/2+1)  ,fftwf_malloc,fftwf_free) ),
-	hs          ( Multi_array<complex_f,3,uint32_t>	(n_threads,n_prod    ,(l_fft/2+1),fftwf_malloc,fftwf_free) ),
-    Hs          ( Multi_array<BinType,3,uint32_t> 	(n_threads,n_prod    ,nofbins,fftwf_malloc,fftwf_free) )
+	gs			( Multi_array<float,2,uint32_t>     ((uint)n_threads,l_fft         ,fftwf_malloc,fftwf_free) ),
+    fs			( Multi_array<complex_f,2,uint32_t>	((uint)n_threads,(l_fft/2+1)  ,fftwf_malloc,fftwf_free) ),
+	hs          ( Multi_array<complex_f,3,uint32_t>	((uint)n_threads,n_prod    ,(l_fft/2+1),fftwf_malloc,fftwf_free) ),
+    Hs          ( Multi_array<BinType,3,uint32_t> 	((uint)n_threads,n_prod    ,nofbins,fftwf_malloc,fftwf_free) )
 {
     checks();
 	prepare_plans();
@@ -156,7 +156,7 @@ void TimeQuad_FFT_to_Hist<float,BinType,DataType>::prepare_kernels(np_double&  n
         {
             ( (float*)ks_complex(j) )[i] = ks(j,i)*norm_factor ; /*Normalisation done here*/
         }
-        for(uint i = l_kernel ; i < l_fft ; i++)
+        for(uint i = l_kernel ; i < 2*(l_fft/2+1) ; i++) /* Also 0s the extra element */
         {
             ( (float*)ks_complex(j) )[i] = 0 ; 
         }
@@ -304,7 +304,7 @@ void TimeQuad_FFT_to_Hist<float,BinType,DataType>::execute( Multi_array<DataType
 }
 
 template<class BinType,class DataType>
-inline void TimeQuad_FFT_to_Hist<float,BinType,DataType>::float_to_hist( float data, BinType* histogram , float max , float bin_width )
+inline void TimeQuad_FFT_to_Hist<float,BinType,DataType>::float_to_hist( float data, BinType* histogram , double max , double bin_width )
 { 	
     std::abs(data) >= max ? histogram[0]++ : histogram[ (unsigned int)((data+max)/(bin_width)) ]++ ;
 }
@@ -358,10 +358,10 @@ py::array_t<BinType,py::array::c_style>  TimeQuad_FFT_to_Hist<float,BinType,Data
 }
 
 template<class BinType,class DataType>
-py::array_t<float> TimeQuad_FFT_to_Hist<float,BinType,DataType>::abscisse_py( float max, uint nofbins )
+py::array_t<double> TimeQuad_FFT_to_Hist<float,BinType,DataType>::abscisse_py( double max, uint nofbins )
 {
-	float bin_width = 2.0*max/( nofbins );
-	Multi_array<float,1> abscisse(nofbins) ;	
+	double bin_width = 2.0*max/( nofbins );
+	Multi_array<double,1> abscisse(nofbins) ;	
     for(uint64_t i = 0; i < nofbins; i++)
     {
         abscisse[i] = ( (i + 0.5)*bin_width )- max ; 

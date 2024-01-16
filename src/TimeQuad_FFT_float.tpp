@@ -22,9 +22,9 @@ TimeQuad_FFT<float,DataType>::TimeQuad_FFT
 	n_threads	(n_threads)								,
 	l_chunk		(compute_l_chunk(l_kernel,l_fft)) 		,
     ks_complex	( Multi_array<complex_f,2,uint32_t>	(n_prod    ,(l_fft/2+1)	         ,fftwf_malloc,fftwf_free) ),
-	gs			( Multi_array<float,2,uint32_t>		(n_threads ,2*(l_fft/2+1)        ,fftwf_malloc,fftwf_free) ),
-	fs			( Multi_array<complex_f,2,uint32_t>	(n_threads ,(l_fft/2+1)          ,fftwf_malloc,fftwf_free) ),
-	hs          ( Multi_array<complex_f,3,uint32_t>	(n_threads,n_prod,(l_fft/2+1),fftwf_malloc,fftwf_free) )
+	gs			( Multi_array<float,2,uint32_t>		((uint)n_threads ,l_fft                ,fftwf_malloc,fftwf_free) ),
+	fs			( Multi_array<complex_f,2,uint32_t>	((uint)n_threads ,(l_fft/2+1)          ,fftwf_malloc,fftwf_free) ),
+	hs          ( Multi_array<complex_f,3,uint32_t>	((uint)n_threads,n_prod,(l_fft/2+1),fftwf_malloc,fftwf_free) )
 {
     checks();
 	prepare_plans();
@@ -148,7 +148,7 @@ void TimeQuad_FFT<float,DataType>::prepare_kernels(np_double&  np_ks)
         {
             ( (float*)ks_complex(j) )[i] = ks(j,i)*norm_factor ; /*Normalisation done here*/
         }
-        for(uint i = l_kernel ; i < l_fft ; i++)
+        for(uint i = l_kernel ; i < 2*(l_fft/2+1) ; i++) /*Also places a 0 in the extra memory for rc2*/
         {
             ( (float*)ks_complex(j) )[i] = 0 ; 
         }
@@ -173,7 +173,10 @@ template<class DataType>
 void TimeQuad_FFT<float,DataType>::execute_py(np_double& ks, py::array_t<DataType, py::array::c_style>& np_data)
 {
 	execution_checks( ks,np_data );
-    omp_set_num_threads(n_threads); // Makes sure the declared number of thread if the same as planned
+    // if (omp_get_num_threads() != n_threads)  // Makes sure the declared number of thread if the same as planned
+	// {	
+        // omp_set_num_threads(n_threads);
+    // }
     prepare_kernels(ks);
     Multi_array<DataType,1,uint64_t> data = Multi_array<DataType,1,uint64_t>::numpy_share(np_data) ;
 	execute( data );
@@ -195,7 +198,7 @@ void TimeQuad_FFT<float,DataType>::execute( Multi_array<DataType,1,uint64_t>& da
             }
         }
 	}
-	#pragma omp parallel
+	#pragma omp parallel num_threads(n_threads)
     {
         manage_thread_affinity();
         #pragma omp for simd collapse(3) nowait
@@ -210,7 +213,7 @@ void TimeQuad_FFT<float,DataType>::execute( Multi_array<DataType,1,uint64_t>& da
             }	
         }
         #pragma omp for simd collapse(2) nowait
-		for( int th_n=0; th_n<n_threads; th_n++ )  
+		for( uint th_n=0; th_n<(uint)n_threads; th_n++ )  
         {            
             for(uint k=l_chunk; k  < l_fft ; k++ )
             {
@@ -230,8 +233,6 @@ void TimeQuad_FFT<float,DataType>::execute( Multi_array<DataType,1,uint64_t>& da
 			fftwf_execute_dft_r2c( g_plan, gs[this_thread] , reinterpret_cast<fftwf_complex*>( fs[this_thread] ) );
             for ( uint j = 0 ; j<n_prod ; j++ ) 
             {
-                // #pragma GCC unroll 16
-                // #pragma GCC ivdep // unconditionally vectorize
                 for( uint k=0 ; k < (l_fft/2+1) ; k++ )
                 {	
                     hs(this_thread,j,k) = ks_complex(j,k) * fs(this_thread,k);

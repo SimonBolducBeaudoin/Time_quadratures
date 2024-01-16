@@ -22,7 +22,7 @@ TimeQuad_FFT<double,DataType>::TimeQuad_FFT
 	n_threads	(n_threads)								,
 	l_chunk		(compute_l_chunk(l_kernel,l_fft)) 		,
     ks_complex	( Multi_array<complex_d,2,uint32_t>	(n_prod    ,(l_fft/2+1)	 ,fftw_malloc,fftw_free) ),
-	gs			( Multi_array<double,2,uint32_t>    (n_threads ,2*(l_fft/2+1),fftw_malloc,fftw_free) ),
+	gs			( Multi_array<double,2,uint32_t>    (n_threads ,l_fft        ,fftw_malloc,fftw_free) ),
 	fs			( Multi_array<complex_d,2,uint32_t>	(n_threads ,(l_fft/2+1)  ,fftw_malloc,fftw_free) ),
 	hs          ( Multi_array<complex_d,3,uint32_t>	(n_threads,n_prod,(l_fft/2+1),fftw_malloc,fftw_free) )
 {
@@ -144,7 +144,7 @@ void TimeQuad_FFT<double,DataType>::prepare_kernels(np_double&  np_ks)
         {
             ( (double*)ks_complex(j) )[i] = ks(j,i)*norm_factor ; /*Normalisation done here*/
         }
-        for(uint i = l_kernel ; i < l_fft ; i++)
+        for(uint i = l_kernel ; i < 2*(l_fft/2+1) ; i++) /*Also places a 0 in the extra memory for rc2*/
         {
             ( (double*)ks_complex(j) )[i] = 0 ; 
         }

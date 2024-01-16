@@ -138,7 +138,7 @@ class TimeQuad_FFT_to_Hist<float,BinType,DataType>
 		float dt , 
 		uint  l_fft ,
         uint nofbins ,
-        float max,
+        double max,
 		int n_threads 
 	);
 	// Destructor
@@ -148,7 +148,7 @@ class TimeQuad_FFT_to_Hist<float,BinType,DataType>
     void execute( Multi_array<DataType,1,uint64_t>& data );
     void execute_py(np_double& ks,py::array_t<DataType, py::array::c_style>& data);
         
-    static py::array_t<float> abscisse_py( float max , uint nofbins );
+    static py::array_t<double> abscisse_py( double max , uint nofbins );
      
     // Returns only the valid part of the convolution
     py::array_t<BinType,py::array::c_style> get_Histograms_py(); // Data are copied
@@ -179,8 +179,8 @@ class TimeQuad_FFT_to_Hist<float,BinType,DataType>
     float dt ;
     uint l_fft; // Lenght(/number of elements) of the FFT used for FFT convolution
     uint nofbins ;
-    float max ;
-    float bin_width ;
+    double max ;
+    double bin_width ;
 	int n_threads ;
 	uint l_chunk ; // The length of a chunk
     uint n_chunks ;
@@ -210,7 +210,7 @@ class TimeQuad_FFT_to_Hist<float,BinType,DataType>
 	void prepare_kernels(np_double& ks) ;
     void execution_checks(np_double& ks, py::array_t<DataType,py::array::c_style>& data);
     
-    inline void float_to_hist( float data, BinType* histogram , float max , float bin_width );
+    inline void float_to_hist( float data, BinType* histogram , double max , double bin_width );
 };
 
 #include "TimeQuad_FFT_double_to_Hist.tpp"
