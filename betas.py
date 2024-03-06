@@ -81,6 +81,17 @@ def flatband(f,params,res):
     res[:] = _Tukey(f[:],f_1,f_2,f_3,f_4)
     res[:] = res[:]/(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) ) # normalization
     
+@_nb.guvectorize([(_nb.float64[:],_nb.float64[:],_nb.complex128[:])], '(n),(l)->(n)')
+def flatband_v(f,params,res):
+    """
+    Flatband for voltage modes
+    flatband_v( f,[f_1,f_2,f_3,f_4])
+    """
+    df = f[1]-f[0]
+    f_1,f_2,f_3,f_4 = params[0],params[1],params[2],params[3]
+    res[:] = _np.sqrt(f[:])*_Tukey(f[:],f_1,f_2,f_3,f_4)
+    res[:] = res[:]/(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) ) # normalization
+    
 def concatenate_betas(*args):
     t = tuple()
     for arg in args :
