@@ -1,3 +1,4 @@
 [submodule "CMakeConfigs"]
 	path = CMakeConfigs
 	url = https://github.com/SimonBolducBeaudoin/CMakeConfigs.git
+	branch = devel
