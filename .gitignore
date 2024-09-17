@@ -39,3 +39,4 @@ README.pdf
 build/
 
 *.pyc
+__pycache__/
