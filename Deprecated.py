@@ -369,7 +369,7 @@ class QsVsVdc_fig(object):
         """
         N           = n.shape[0]
         M           = n.shape[1]
-        V_th        = numpy.array([V_th]) if type(V_th) is float or type(V_th)is  numpy.float64 else numpy.array(V_th) 
+        V_th        = numpy.array([V_th]) if isinstance(V_th, float) or isinstance(V_th, numpy.float64) else numpy.array(V_th) 
         Vth         = numpy.zeros((N,))
         Vth[...]    = V_th
         Vjct        = numpy.zeros((N,M))
@@ -779,7 +779,7 @@ class QsVsVdc_fig(object):
         Pos b = {} [ph]
         Neg b = {} [ph]
         """
-        Vth  = numpy.array([Vth]) if type(Vth) is float or type(Vth) is numpy.float64 else numpy.array(Vth)
+        Vth  = numpy.array([Vth]) if isinstance(Vth, float) or isinstance(Vth, numpy.float64) else numpy.array(Vth)
         sth  = formated_tuple('{:.1f}' ,Vth*1.0e6)
         sap  = formated_tuple('{:.0f}' ,P[0,:,0])
         san  = formated_tuple('{:.0f}' ,P[1,:,0])
@@ -1119,7 +1119,7 @@ class QsVsVdc_analysis(QsVsVdc_info,Analysis):
     @staticmethod
     def compute_C4_corr(C4_s,C2_3_s,V_th_slice,p0=(1.0,),verbose=False):
         n_kernels   = C4_s.shape[0]
-        if type(V_th_slice)== slice :
+        if isinstance(V_th_slice, slice) :
             V_th_s = numpy.empty((n_kernels,),dtype=object)
             V_th_s[...] = V_th_slice
         elif len(V_th_slice.shape)==1:
@@ -1193,9 +1193,9 @@ class QsVsVdc_analysis(QsVsVdc_info,Analysis):
         Vdc_antisym = self._Vdc_antisym
         V_jct       = Three_points_polarisation.compute_V_sample(Vdc_antisym,R_jct,R_1M)
             
-        Vth         = V_th if type(V_th)!=type(None) else self._V_th
-        Vth         = numpy.array([Vth]) if type(Vth) != numpy.ndarray else Vth
-        V_th_slice  = Vth < abs(V_jct) if type(Vth)==float or len(Vth) == 1 else Vth[:,None] < abs(V_jct[None,:])
+        Vth         = V_th if not isinstance(V_th, type(None)) else self._V_th
+        Vth         = numpy.array([Vth]) if not isinstance(Vth, numpy.ndarray) else Vth
+        V_th_slice  = Vth < abs(V_jct) if isinstance(Vth, float) or len(Vth) == 1 else Vth[:,None] < abs(V_jct[None,:])
         
         C4_s        = self.cumulants_sample[2]
         C2_s        = self.cumulants_sample[1]
