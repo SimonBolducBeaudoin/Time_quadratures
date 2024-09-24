@@ -388,9 +388,9 @@ class QsVsVdc_fig(object):
         exp = self.exp
         fig = figure()
         ax = gca()
-        kernel_indexes  = range(exp._n_kernels)[kernel_slice]
+        kernel_indexes  = list(range(exp._n_kernels))[kernel_slice]
         Vdc             = exp._Vdc_exp
-        V_indexes       = range(len(Vdc))[V_slice]
+        V_indexes       = list(range(len(Vdc)))[V_slice]
         abscisse        = Histogram_uint64_t_double.abscisse(exp._max,exp._nb_of_bin)
         k_labels        = exp._labels
         k_linstyle      = ['solid','dotted','dashed','dashdot','solid','dotted','dashed','dashdot']
@@ -417,12 +417,12 @@ class QsVsVdc_fig(object):
             if errorbar : 
                 plot_kw['capsize'] = capsize
                 if display_in_order :
-                    axs.errorbar(range(len(I_jct)),moments[moment_index,i,:],yerr=moments_std[moment_index,i,:],**plot_kw)
+                    axs.errorbar(list(range(len(I_jct))),moments[moment_index,i,:],yerr=moments_std[moment_index,i,:],**plot_kw)
                 else :
                     axs.errorbar(I_jct*10**6,moments[moment_index,i,:],yerr=moments_std[moment_index,i,:],**plot_kw)
             else        : 
                 if display_in_order :
-                    axs.plot(range(len(I_jct)),moments[moment_index,i,:],**plot_kw) 
+                    axs.plot(list(range(len(I_jct))),moments[moment_index,i,:],**plot_kw) 
                 else : 
                     axs.plot(I_jct*10**6,moments[moment_index,i,:],**plot_kw) 
         axs.legend()
