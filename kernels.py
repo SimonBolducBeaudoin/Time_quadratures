@@ -6,7 +6,7 @@ import numba as _nb
 from scipy.signal.windows import tukey as _tukey
 
 from ..Math_extra.special_functions import FresnelCos, FresnelSin
-from betas import f_bar
+from .betas import f_bar
 
 def gen_freq(n,dt):
     return _np.fft.rfftfreq(n,dt)
