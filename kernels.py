@@ -1,7 +1,5 @@
 #!/bin/env/python
 #! -*- coding: utf-8 -*-
-from __future__ import division
-from past.utils import old_div
 import numpy as _np
 from scipy import constants as _C
 import numba as _nb
@@ -24,14 +22,14 @@ def _kp(t,dt):
     if t == 0 :
         return 2.0 * _np.sqrt(2.0/dt)
     else :
-        return 2.0 / _np.sqrt(_np.abs(t)) * FresnelCos(_np.sqrt(old_div(2.0 * _np.abs(t), dt)))
+        return 2.0 / _np.sqrt(_np.abs(t)) * FresnelCos(_np.sqrt(2.0 * _np.abs(t) / dt))
         
 @_nb.vectorize([_nb.float64(_nb.float64, _nb.float64)])
 def _kq(t,dt):
     if t == 0 :
         return 0.0
     else :
-        return _np.sign(t)* 2.0 / _np.sqrt(_np.abs(t)) * FresnelSin(_np.sqrt(old_div(2.0 * _np.abs(t), dt)))
+        return _np.sign(t)* 2.0 / _np.sqrt(_np.abs(t)) * FresnelSin(_np.sqrt(2.0 * _np.abs(t) / dt))
 
 # @_nb.vectorize([_nb.float64(_nb.float64,_nb.float64,_nb.float64,_nb.float64)])
 # def _delta(t,dt,Theta=None,Z=50.0):
@@ -111,7 +109,7 @@ def half_normalization(ks,dt):
     which allows for consistent histogram bounds after convolution.
     """
     hn = _np.sqrt( (ks**2).sum(axis=-1)*dt )
-    return  old_div(ks,hn[...,None]) , hn
+    return  ks/hn[...,None] , hn
  
 def half_denormalization(ks):
     """
@@ -133,7 +131,7 @@ def make_kernels(t,betas,g=None,window=True,alpha=0.5,Z=50.,Theta=0.,half_norm=T
     if Voltage_modes :
         ks   = delta(t,Theta,Z)
         if g is not None :
-            filters = old_div(betas,g)
+            filters = betas/g
         else :
             filters = betas            
         n = ks.shape[-1]
@@ -148,7 +146,7 @@ def make_kernels(t,betas,g=None,window=True,alpha=0.5,Z=50.,Theta=0.,half_norm=T
             T = _tukey(ks.shape[-1],alpha=alpha)
             ks = ks*T
         if g is not None :
-            filters = old_div(betas,g)
+            filters = betas/g
         else :
             filters = betas
         ks = apply_filters(ks,filters)
