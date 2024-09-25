@@ -1,5 +1,7 @@
 #!/bin/env/python
 #! -*- coding: utf-8 -*-
+from __future__ import division
+from past.utils import old_div
 import numpy as _np
 import numba as _nb
 
@@ -12,7 +14,7 @@ def normalize(beta,df,res):
 	Beta(f)	=	---------------------------
 			   ( 2 int |beta(f)|^2 df )^1/2
     """
-    res[:] = beta[:]/(  _np.sqrt(2*df*( _np.abs(beta[:])**2 ).sum() ) )
+    res[:] = old_div(beta[:],(  _np.sqrt(2*df*( _np.abs(beta[:])**2 ).sum() ) ))
     
 def f_bar(betas,freq):
     """
@@ -23,14 +25,14 @@ def f_bar(betas,freq):
         
 @_nb.vectorize([_nb.float64(_nb.float64,_nb.float64,_nb.float64)])
 def _gaussian (x,mu=0.0,sigma=1.0) :
-    return _np.exp( (-(x-mu)**2)/(2.0*sigma**2) )
+    return _np.exp( old_div((-(x-mu)**2),(2.0*sigma**2)) )
 
 @_nb.guvectorize([(_nb.float64[:],_nb.float64[:],_nb.complex128[:])], '(n),(m)->(n)') 
 def gaussian(f,params,res):
     f_mean,f_std = params[0],params[1]
     df = f[1]-f[0]
     res[:] = _gaussian (f[:],f_mean,f_std)
-    res[:] = res[:]/(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) ) # normalization
+    res[:] = old_div(res[:],(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) )) # normalization
     
 @_nb.guvectorize([(_nb.float64[:],_nb.float64[:],_nb.float64[:],_nb.complex128[:])], '(n),(m),(m)->(n)') 
 def bigaussian(f,p1,p2,res):
@@ -38,7 +40,7 @@ def bigaussian(f,p1,p2,res):
     f2_m,f2_s,phi2  = p2[0],p2[1],p2[2]
     df = f[1]-f[0]
     res[:] = _np.exp(1j*phi1)*_gaussian (f[:],f1_m,f1_s) + _np.exp(1j*phi2)*_gaussian (f[:],f2_m,f2_s)
-    res[:] = res[:]/(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) ) # normalization
+    res[:] = old_div(res[:],(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) )) # normalization
      
 @_nb.guvectorize([(_nb.float64[:],_nb.complex128[:,:],_nb.complex128[:])], '(n),(l,m)->(n)') 
 def multigaussian(f,ps,res):
@@ -69,7 +71,7 @@ def multigaussian(f,ps,res):
     res[:] = 0
     for i in range(ps.shape[0]) :
         res[:] += ps[i,2]*_gaussian(f[:],_np.abs(ps[i,0]),_np.abs(ps[i,1]))
-    res[:] = res[:]/(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) ) # normalization
+    res[:] = old_div(res[:],(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) )) # normalization
     
 @_nb.guvectorize([(_nb.float64[:],_nb.float64[:],_nb.complex128[:])], '(n),(l)->(n)')
 def flatband(f,params,res):
@@ -79,7 +81,7 @@ def flatband(f,params,res):
     df = f[1]-f[0]
     f_1,f_2,f_3,f_4 = params[0],params[1],params[2],params[3]
     res[:] = _Tukey(f[:],f_1,f_2,f_3,f_4)
-    res[:] = res[:]/(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) ) # normalization
+    res[:] = old_div(res[:],(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) )) # normalization
     
 @_nb.guvectorize([(_nb.float64[:],_nb.float64[:],_nb.complex128[:])], '(n),(l)->(n)')
 def flatband_v(f,params,res):
@@ -90,7 +92,7 @@ def flatband_v(f,params,res):
     df = f[1]-f[0]
     f_1,f_2,f_3,f_4 = params[0],params[1],params[2],params[3]
     res[:] = _np.sqrt(f[:])*_Tukey(f[:],f_1,f_2,f_3,f_4)
-    res[:] = res[:]/(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) ) # normalization
+    res[:] = old_div(res[:],(  _np.sqrt(2*df*( _np.abs(res[:])**2 ).sum() ) )) # normalization
     
 def concatenate_betas(*args):
     t = tuple()

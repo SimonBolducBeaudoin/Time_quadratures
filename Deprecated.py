@@ -1,6 +1,8 @@
 #!/bin/env/python
 #! -*- coding: utf-8 -*-
 
+from __future__ import division
+from past.utils import old_div
 from SBB.Pyhegel_extra.Experiment import Info, Lagging_computation, Analysis
 from SBB.Pyhegel_extra.Deprecated import logger_acq_and_compute
 from SBB.Pyhegel_extra.Deprecated import Conditions_logic,Three_points_polarisation
@@ -25,7 +27,7 @@ class Quads_helper(object):
     """
     @staticmethod
     def gen_t_abscisse(l_kernel,dt):
-        t=numpy.arange(l_kernel/2+1)*dt
+        t=numpy.arange(old_div(l_kernel,2)+1)*dt
         return numpy.concatenate((-t[-1:0:-1],t))
     @staticmethod
     def gen_f_abscisse(l_kernel,dt):
@@ -238,10 +240,10 @@ class Quads_helper(object):
             This function is for conveniance.
         """
         sum = numpy.sqrt( 2*df*(numpy.square(numpy.abs(Y))).sum() )
-        return Y/(sum)
+        return old_div(Y,(sum))
     @staticmethod
     def Gaussian (x,mu=0.0,sigma=1.0) :
-        return (1.0/(sigma*numpy.sqrt(2.0*numpy.pi))) * numpy.exp( (-(x-mu)**2)/(2.0*sigma**2) )
+        return (1.0/(sigma*numpy.sqrt(2.0*numpy.pi))) * numpy.exp( old_div((-(x-mu)**2),(2.0*sigma**2)) )
     @staticmethod
     def Gaussian_filter_normalized(f,df,l_kernel,dt) :
         """
@@ -328,7 +330,7 @@ class QsVsVdc_info(Info,Quads_helper):
         self._dt            = self._meta_info['aqc_info']['dt']
         
         self._l_kernel      = int(self._meta_info['quads_info']['l_kernel'])
-        self._l_hc          = self._l_kernel/2 + 1   
+        self._l_hc          = old_div(self._l_kernel,2) + 1   
         self._alpha         = self._meta_info['quads_info']['alpha']
         self._kernel_conf   = self._meta_info['quads_info']['kernel_conf']
         
@@ -575,7 +577,7 @@ class QsVsVdc_fig(object):
         fig , axs = subplots(1,1)
         for i, label in enumerate(labels):
             plot_kw['label'] = label 
-            axs.plot(I_jct[V_slice]*10**6,1e27*ns[0,i,:][V_slice]*_h*fs[i]*1e9/R_jct,**plot_kw)
+            axs.plot(I_jct[V_slice]*10**6,old_div(1e27*ns[0,i,:][V_slice]*_h*fs[i]*1e9,R_jct),**plot_kw)
         axs.legend()
         axs.title.set_text('gaussian filters only divided by center freq.')
         axs.set_ylabel('SII[A**2/Hz]* 10**-27 = <n>hf/Raq')
@@ -631,7 +633,7 @@ class QsVsVdc_fig(object):
         ns              = exp.ns_corrected if corrected else exp.ns
         ns_std          = exp.ns_std
         plot_kw = {'linestyle':'-'}
-        fig , axs = subplots(2,len(labels)/2 + len(labels)%2 )
+        fig , axs = subplots(2,old_div(len(labels),2) + len(labels)%2 )
         AXS = fig.axes 
         for i, label in enumerate(labels[kernel_slice]):
             plot_kw['label'] = label 
@@ -1086,7 +1088,7 @@ class QsVsVdc_analysis(QsVsVdc_info,Analysis):
         return cumulants_std
     @staticmethod
     def compute_fano(dn2,n):
-        return dn2/n
+        return old_div(dn2,n)
     @staticmethod
     def compute_ns(cumulants_sample):
         """
@@ -1273,7 +1275,7 @@ def _gen_dict_helper(d):
     
 def gen_quads_info(l_kernel,kernel_conf=None,alpha=None,filters_info=None):
     l_kernel    = int(l_kernel)
-    l_hc        = l_kernel/2 + 1 
+    l_hc        = old_div(l_kernel,2) + 1 
     quads_info  = {'l_kernel':l_kernel,'l_hc':l_hc,'kernel_conf':kernel_conf,'alpha':alpha,'filters_info':filters_info}
     return _gen_dict_helper(quads_info)
  
@@ -1382,7 +1384,7 @@ def fit_of_C4(C4_s,C2_3_s,V_th_slice,axis=-1,p0=(1.0,),verbose=False):
     return f
 
 def compute_fano(dn2,n):
-    return dn2/n
+    return old_div(dn2,n)
     
 def moments_correction(moments,half_norms,powers):
     """
@@ -1405,7 +1407,7 @@ def moments_correction(moments,half_norms,powers):
     return moments_corrected 
     
 def gen_t_abscisse(l_kernel,dt):
-    t=numpy.arange(l_kernel/2+1)*dt
+    t=numpy.arange(old_div(l_kernel,2)+1)*dt
     return numpy.concatenate((-t[-1:0:-1],t))
 
 def gen_f_abscisse(l_kernel,dt):
