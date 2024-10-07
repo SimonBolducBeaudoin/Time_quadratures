@@ -127,7 +127,7 @@ def apply_filters(ks,filters):
 
 def make_kernels(t,betas,g=None,window=True,alpha=0.5,Z=50.,Theta=0.,half_norm=True,Voltage_modes=False):
     dt = abs(t[1]-t[0])
-    
+    # VOLTAGEMODES IS DEPRECATED IT SHOULD BE REMOVED
     if Voltage_modes :
         ks   = delta(t,Theta,Z)
         if g is not None :
