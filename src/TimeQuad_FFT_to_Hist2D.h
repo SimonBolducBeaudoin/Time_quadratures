@@ -1,5 +1,7 @@
 #pragma once
 #include <omp_extra.h>
+#include <histogram2D.h>
+
 #include <sys/types.h>
 
 #include <pybind11/complex.h>
@@ -11,8 +13,6 @@ using namespace pybind11::literals;
 #include <Multi_array.h>
 
 #include <fftw3.h>
-
-// #include <iostream>
 
 typedef unsigned int uint;
 typedef std::complex<float> complex_f;
@@ -110,7 +110,7 @@ template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<double, Bi
 
     inline void float_to_hist(double data, BinType *histogram, double max, double bin_width);
 };
-
+/*
 template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<float, BinType, DataType> {
   public:
     // Contructor
@@ -184,6 +184,7 @@ template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<float, Bin
 
     inline void float_to_hist(float data, BinType *histogram, double max, double bin_width);
 };
+*/
 
-#include "TimeQuad_FFT_double_to_Hist.tpp"
-#include "TimeQuad_FFT_float_to_Hist.tpp"
+#include "TimeQuad_FFT_double_to_Hist2D.tpp"
+//#include "TimeQuad_FFT_float_to_Hist.tpp"
