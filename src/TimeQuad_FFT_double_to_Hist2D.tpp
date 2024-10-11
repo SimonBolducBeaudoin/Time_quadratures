@@ -3,7 +3,8 @@ template <class BinType, class DataType>
 TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::TimeQuad_FFT_to_Hist2D(
     np_double ks, py::array_t<DataType, py::array::c_style> data, double dt, uint l_fft,
     uint nofbins, double max, int n_threads)
-    : n_prod(compute_n_prod(ks)), ks_shape(get_shape(ks)), l_kernel(compute_l_kernels(ks)),
+    : n_prod(compute_n_prod(ks)), n_hist(std::max(n_prod/2, (uint)1)) ,
+      ks_shape(get_shape(ks)), l_kernel(compute_l_kernels(ks)),
       l_data(compute_l_data(data)), l_valid(compute_l_valid(l_kernel, l_data)),
       l_full(compute_l_full(l_kernel, l_data)), dt(dt), l_fft(l_fft), nofbins(nofbins), max(max),
       bin_width(2.0 * max / (nofbins)), n_threads(n_threads),

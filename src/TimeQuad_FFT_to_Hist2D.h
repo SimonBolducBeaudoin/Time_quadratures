@@ -3,6 +3,7 @@
 #include <histogram2D.h>
 
 #include <sys/types.h>
+#include <algorithm>   // For std::max
 
 #include <pybind11/complex.h>
 #include <pybind11/numpy.h>
@@ -70,6 +71,7 @@ template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<double, Bi
 
   private:
     uint n_prod;
+	uint n_hist;
     std::vector<ssize_t> ks_shape;
     uint l_kernel;
     uint64_t l_data; //
@@ -96,10 +98,10 @@ template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<double, Bi
 
     // Pointers to all the complex kernels
     Multi_array<complex_d, 2, uint32_t> ks_complex; // [n_prod][frequency]
-    Multi_array<double, 2, uint32_t> gs;    // [thread_num][frequency] Catches data from data*
-    Multi_array<complex_d, 2, uint32_t> fs; // [thread_num][frequency] Catches DFT of data
-    Multi_array<complex_d, 3, uint32_t> hs; // [n_prod][thread_num][frequency]
-    Multi_array<BinType, 3, uint32_t> Hs;   // [n_prod][nofbins]
+    Multi_array<double, 2, uint32_t> gs;    // 			[thread_num][frequency] Catches data from data*
+    Multi_array<complex_d, 2, uint32_t> fs; // 			[thread_num][frequency] Catches DFT of data
+    Multi_array<complex_d, 3, uint32_t> hs; // [n_prod]	[thread_num][frequency]
+    Histogram2D<BinType, double> Hs;   		// [n_hist][nofbins][nofbins]
 
     void checks();
     void prepare_plans();
@@ -107,8 +109,7 @@ template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<double, Bi
 
     void prepare_kernels(np_double &ks);
     void execution_checks(np_double &ks, py::array_t<DataType, py::array::c_style> &data);
-
-    inline void float_to_hist(double data, BinType *histogram, double max, double bin_width);
+	
 };
 /*
 template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<float, BinType, DataType> {
