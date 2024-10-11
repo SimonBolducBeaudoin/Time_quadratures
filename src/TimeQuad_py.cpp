@@ -73,16 +73,16 @@ const char *s_TQtoH2D = "\t TDB;";
         .def_static("abscisse", &TimeQuad_FFT_to_Hist<FloatType, BinType, DataType>::abscisse_py,  \
                     "max"_a.noconvert(), "nofbins"_a.noconvert());
 
-// #define PY_TIME_QUAD_FFT_TO_HIST(FloatType, BinType, DataType)                                     \
-    py::class_<TimeQuad_FFT_to_Hist<FloatType, BinType, DataType>>(                                \
-        m, "TimeQuad_FFT_" #FloatType "_to_Hist_" #BinType "_" #DataType, s_TQtoH)                 \
+#define PY_TIME_QUAD_FFT_TO_HIST2D(FloatType, BinType, DataType)                                     \
+    py::class_<TimeQuad_FFT_to_Hist2D<FloatType, BinType, DataType>>(                                \
+        m, "TimeQuad_FFT_" #FloatType "_to_Hist2D_" #BinType "_" #DataType, s_TQtoH)                 \
         .def(py::init<np_double, np_int16, double, uint, uint, double, int>(), "ks"_a.noconvert(), \
              "data"_a.noconvert(), "dt"_a.noconvert(), "l_fft"_a.noconvert(),                      \
              "nb_of_bins"_a.noconvert(), "max"_a.noconvert(), "n_threads"_a.noconvert())           \
-        .def("Histograms", &TimeQuad_FFT_to_Hist<FloatType, BinType, DataType>::get_Histograms_py) \
-        .def("reset", &TimeQuad_FFT_to_Hist<FloatType, BinType, DataType>::reset)                  \
-        .def("execute", &TimeQuad_FFT_to_Hist<FloatType, BinType, DataType>::execute_py)           \
-        .def_static("abscisse", &TimeQuad_FFT_to_Hist<FloatType, BinType, DataType>::abscisse_py,  \
+        .def("Histograms", &TimeQuad_FFT_to_Hist2D<FloatType, BinType, DataType>::get_Histograms_py) \
+        .def("reset", &TimeQuad_FFT_to_Hist2D<FloatType, BinType, DataType>::reset)                  \
+        .def("execute", &TimeQuad_FFT_to_Hist2D<FloatType, BinType, DataType>::execute_py)           \
+        .def_static("abscisse", &TimeQuad_FFT_to_Hist2D<FloatType, BinType, DataType>::abscisse_py,  \
                     "max"_a.noconvert(), "nofbins"_a.noconvert());
 
     void
@@ -95,10 +95,10 @@ const char *s_TQtoH2D = "\t TDB;";
     PY_TIME_QUAD_FFT_TO_HIST(float, uint64_t, int16_t);
     PY_TIME_QUAD_FFT_TO_HIST(float, uint32_t, int16_t);
 
-    // PY_TIME_QUAD_FFT_TO_HIST(double, uint64_t, int16_t);
-    // PY_TIME_QUAD_FFT_TO_HIST(double, uint32_t, int16_t);
-    // PY_TIME_QUAD_FFT_TO_HIST(float, uint64_t, int16_t);
-    // PY_TIME_QUAD_FFT_TO_HIST(float, uint32_t, int16_t);
+    PY_TIME_QUAD_FFT_TO_HIST2D(double, uint64_t, int16_t);
+    PY_TIME_QUAD_FFT_TO_HIST2D(double, uint32_t, int16_t);
+	// PY_TIME_QUAD_FFT_TO_HIST2D(float, uint64_t, int16_t);
+	// PY_TIME_QUAD_FFT_TO_HIST2D(float, uint32_t, int16_t);
 }
 
 // CLOSE MACRO SCOPES
