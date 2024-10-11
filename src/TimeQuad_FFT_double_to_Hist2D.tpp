@@ -35,6 +35,9 @@ void TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::checks() {
     if (2 * l_kernel - 2 > l_fft) {
         throw std::runtime_error("l_kernel to big, you have to repsect 2*l_kernel-2 <= l_fft");
     }
+	if (n_prod%2 == 1) {
+        throw std::runtime_error("n_prod i.e. the number of kernels given to TimeQuad_to_Hist2D needs to be a even number.");
+    }
 }
 
 // PREPARE_PLANS METHOD
