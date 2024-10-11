@@ -320,3 +320,4 @@ py::array_t<double> TimeQuad_FFT_to_Hist<double, BinType, DataType>::abscisse_py
     }
     return abscisse.move_py();
 }
+#undef ACCUMULATE				 
