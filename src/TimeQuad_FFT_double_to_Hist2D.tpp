@@ -17,7 +17,7 @@ TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::TimeQuad_FFT_to_Hist2D(
       fs(Multi_array<complex_d, 2, uint32_t>(n_threads, (l_fft / 2 + 1), fftw_malloc, fftw_free)),
       hs(Multi_array<complex_d, 3, uint32_t>(n_threads, n_prod, (l_fft / 2 + 1), fftw_malloc,
                                              fftw_free)),
-      Hs(Multi_array<BinType, 3, uint32_t>(n_threads, n_prod, nofbins, fftw_malloc, fftw_free)) {
+      Hs(Histogram2D<BinType, double>(nofbins,n_threads, max, n_hist)) {
     checks();
     prepare_plans();
     reset(); // initialize Hs memory to 0.
@@ -167,21 +167,13 @@ void TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::execute_py(
     execute(data);
 }
 
-#define ACCUMULATE(N_TH, J, DATA, L_DATA)                                                          \
-    {                                                                                              \
-        BinType *histogram_local = Hs(N_TH, J);                                                    \
-        for (uint32_t m = 0; m < L_DATA; m++) {                                                    \
-            float_to_hist(*(DATA + m), histogram_local, max, bin_width);                           \
-        }                                                                                          \
-    }
-
 template <class BinType, class DataType>
 void TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::execute(
     Multi_array<DataType, 1, uint64_t> &data) {
-#pragma omp parallel num_threads(n_threads)
+	#pragma omp parallel num_threads(n_threads)
     {
         manage_thread_affinity();
-#pragma omp for simd collapse(2) nowait
+		#pragma omp for simd collapse(2) nowait
         for (uint j = 0; j < n_prod; j++) {
             for (uint i = 0; i < (n_chunks + 1) * l_qs_chunk; i++) {
                 quads(j, i) = 0.0;
@@ -191,8 +183,8 @@ void TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::execute(
         for (uint k = l_chunk; k < l_fft; k++) {
             gs(this_thread, k) = 0;
         }
-#pragma omp barrier
-#pragma omp for
+		#pragma omp barrier
+		#pragma omp for
         for (uint i = 0; i < n_chunks; i++) {
             for (uint j = 0; j < l_chunk; j++) {
                 gs(this_thread, j) = (double)data[i * l_chunk + j];
@@ -207,21 +199,22 @@ void TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::execute(
             fftw_execute_dft_c2r(h_plan, reinterpret_cast<fftw_complex *>(hs(this_thread)),
                                  (double *)hs(this_thread));
 
-            for (uint j = 0; j < n_prod; j++) {
-                ACCUMULATE(this_thread, j, ((double *)hs(this_thread, j)) + l_qs_chunk,
-                           l_fft - 2 * l_qs_chunk)
+            for (uint j = 0; j < n_prod; j+=2) {
+				double* data_1 = ((double *)hs(this_thread, j  )) + l_qs_chunk ;
+				double* data_2 = ((double *)hs(this_thread, j+1)) + l_qs_chunk ;
+				Hs.accumulate(data_1,data_2, l_fft - 2 * l_qs_chunk,j,this_thread) ;
             }
             for (uint j = 0; j < n_prod; j++) {
                 for (uint k = 0; k < l_qs_chunk; k++) {
-#pragma omp atomic update
+					#pragma omp atomic update
                     quads(j, i * l_qs_chunk + k) += ((double *)hs(this_thread, j))[k];
-#pragma omp atomic update
+					#pragma omp atomic update
                     quads(j, (i + 1) * l_qs_chunk + k) +=
                         ((double *)hs(this_thread, j))[l_chunk + k];
                 }
             }
         }
-#pragma omp single
+		#pragma omp single
         {
             if (l_reste != 0) {
                 uint k = 0;
@@ -241,56 +234,44 @@ void TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::execute(
                 }
                 fftw_execute_dft_c2r(h_plan, reinterpret_cast<fftw_complex *>(hs(this_thread)),
                                      (double *)hs(this_thread));
-                for (uint j = 0; j < n_prod; j++) {
+                for (uint j = 0; j < n_prod; j+=2) {
                     for (uint k = 0; k < l_kernel - 1; k++) {
-                        ((double *)hs(this_thread, j))[k] += quads(j, (n_chunks)*l_qs_chunk + k);
+                        ((double *)hs(this_thread, j))[k]   += quads(j  , (n_chunks)*l_qs_chunk + k);
+                        ((double *)hs(this_thread, j+1))[k] += quads(j+1, (n_chunks)*l_qs_chunk + k);
                     }
-                    ACCUMULATE(this_thread, j, (double *)hs(this_thread, j), l_reste)
+					
+					double* data_1 = (double *)hs(this_thread, j  ) ;
+					double* data_2 = (double *)hs(this_thread, j+1) ;
+					Hs.accumulate(data_1,data_2, l_reste,j,this_thread) ;
                 }
             }
         }
-#pragma omp for simd
-        for (uint j = 0; j < n_prod; j++) {
-            ACCUMULATE(this_thread, j, quads(j) + l_qs_chunk, (n_chunks - 1) * l_qs_chunk)
-        }
-        // reduction
-        if (this_thread != 0) {
-            for (uint j = 0; j < n_prod; j++) {
-                for (uint i = 0; i < nofbins; i++) {
-#pragma omp atomic update
-                    Hs(0, j, i) += Hs(this_thread, j, i);
-                    Hs(this_thread, j, i) = 0;
-                }
-            }
+		#pragma omp for simd
+        for (uint j = 0; j < n_prod; j+=2) {
+			double* data_1 = quads(j  ) + l_qs_chunk ;
+			double* data_2 = quads(j+1) + l_qs_chunk ;
+			Hs.accumulate(data_1,data_2, (n_chunks - 1) * l_qs_chunk,j,this_thread) ;
         }
     }
-}
-
-template <class BinType, class DataType>
-inline void
-TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::float_to_hist(double data, BinType *histogram,
-                                                                 double max, double bin_width) {
-    std::abs(data) >= max ? histogram[0]++
-                          : histogram[(unsigned int)((data + max) / (bin_width))]++;
+	Hs.reduction();
 }
 
 template <class BinType, class DataType>
 void TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::reset() {
-    for (uint n = 0; n < (uint)n_threads; n++) {
-        for (uint j = 0; j < n_prod; j++) {
-            for (uint i = 0; i < nofbins; i++) {
-                Hs(n, j, i) = 0;
-            }
-        }
-    }
+    // Resetting 2D hist to 0
+	Hs.reset();
 }
 
 template <class BinType, class DataType>
 py::array_t<BinType, py::array::c_style>
 TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::get_Histograms_py() {
-    std::vector<ssize_t> shape_Hs = ks_shape;
+    py::array_t<BinType> np_histogram = Hs.share_py(); 
+	py::buffer_info buffer = np_histogram.request();
+	
+	std::vector<ssize_t> shape_Hs = ks_shape;
     shape_Hs.pop_back();
     shape_Hs.push_back(uint(nofbins));
+	shape_Hs.push_back(uint(nofbins));
 
     std::vector<ssize_t> strides;
     for (uint i = 0; i < shape_Hs.size(); ++i) {
@@ -301,7 +282,7 @@ TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::get_Histograms_py() {
         strides.push_back(prod * sizeof(BinType));
     }
 
-    BinType *ptr = Hs[0];
+    BinType *ptr = (BinType *)buffer.ptr ;
     size_t num_bytes = shape_Hs[0] * strides[0];
     BinType *new_array = (BinType *)malloc(num_bytes);
     memcpy((void *)new_array, (void *)ptr, num_bytes);
