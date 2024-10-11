@@ -188,4 +188,4 @@ template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<float, Bin
 */
 
 #include "TimeQuad_FFT_double_to_Hist2D.tpp"
-//#include "TimeQuad_FFT_float_to_Hist.tpp"
+//#include "TimeQuad_FFT_float_to_Hist2D.tpp"
