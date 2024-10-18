@@ -189,10 +189,10 @@ void TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::execute_py(
 template <class BinType, class DataType>
 void TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::execute(
     Multi_array<DataType, 1, uint64_t> &data) {
-#pragma omp parallel num_threads(n_threads)
-  {
+	#pragma omp parallel num_threads(n_threads)
+	{
     manage_thread_affinity();
-#pragma omp for simd collapse(2) nowait
+	#pragma omp for simd collapse(2) nowait
     for (uint j = 0; j < n_prod; j++) {
       for (uint i = 0; i < (n_chunks + 1) * l_qs_chunk; i++) {
         quads(j, i) = 0.0;
@@ -202,8 +202,8 @@ void TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::execute(
     for (uint k = l_chunk; k < l_fft; k++) {
       gs(this_thread, k) = 0;
     }
-#pragma omp barrier
-#pragma omp for
+	#pragma omp barrier
+	#pragma omp for
     for (uint i = 0; i < n_chunks; i++) {
       for (uint j = 0; j < l_chunk; j++) {
         gs(this_thread, j) = (double)data[i * l_chunk + j];
@@ -222,19 +222,18 @@ void TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::execute(
       for (uint j = 0; j < n_prod; j += 2) {
         double *data_1 = ((double *)hs(this_thread, j)) + l_qs_chunk;
         double *data_2 = ((double *)hs(this_thread, j + 1)) + l_qs_chunk;
-        Hs.accumulate(data_1, data_2, l_fft - 2 * l_qs_chunk, j, this_thread);
+        Hs.accumulate(data_1, data_2, l_fft - 2 * l_qs_chunk, j/2, this_thread);
       }
       for (uint j = 0; j < n_prod; j++) {
         for (uint k = 0; k < l_qs_chunk; k++) {
-#pragma omp atomic update
-          quads(j, i * l_qs_chunk + k) += ((double *)hs(this_thread, j))[k];
-#pragma omp atomic update
-          quads(j, (i + 1) * l_qs_chunk + k) +=
-              ((double *)hs(this_thread, j))[l_chunk + k];
+			#pragma omp atomic update
+			quads(j, i * l_qs_chunk + k) += ((double *)hs(this_thread, j))[k];
+			#pragma omp atomic update
+			quads(j, (i + 1) * l_qs_chunk + k) += ((double *)hs(this_thread, j))[l_chunk + k];
         }
       }
     }
-#pragma omp single
+	#pragma omp single
     {
       if (l_reste != 0) {
         uint k = 0;
@@ -265,15 +264,15 @@ void TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::execute(
 
           double *data_1 = (double *)hs(this_thread, j);
           double *data_2 = (double *)hs(this_thread, j + 1);
-          Hs.accumulate(data_1, data_2, l_reste, j, this_thread);
+          Hs.accumulate(data_1, data_2, l_reste, j/2, this_thread);
         }
       }
     }
-#pragma omp for simd
+	#pragma omp for simd
     for (uint j = 0; j < n_prod; j += 2) {
       double *data_1 = quads(j) + l_qs_chunk;
       double *data_2 = quads(j + 1) + l_qs_chunk;
-      Hs.accumulate(data_1, data_2, (n_chunks - 1) * l_qs_chunk, j,
+      Hs.accumulate(data_1, data_2, (n_chunks - 1) * l_qs_chunk, j/2,
                     this_thread);
     }
   }
