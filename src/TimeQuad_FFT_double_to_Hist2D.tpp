@@ -293,7 +293,8 @@ TimeQuad_FFT_to_Hist2D<double, BinType, DataType>::get_Histograms_py() {
   py::buffer_info buffer = np_histogram.request();
 
   std::vector<ssize_t> shape_Hs = ks_shape;
-  shape_Hs.pop_back();
+  shape_Hs.pop_back(); // last index of ks is time 
+  shape_Hs.pop_back(); // The before last intdex of ks should be quadratures
   shape_Hs.push_back(uint(nofbins));
   shape_Hs.push_back(uint(nofbins));
 
