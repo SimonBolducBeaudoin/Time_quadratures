@@ -125,31 +125,19 @@ def apply_filters(ks,filters):
     n = ks.shape[-1]
     return _np.fft.fftshift( _np.fft.irfft( _np.fft.rfft(_np.fft.ifftshift(ks,axes=-1))*filters,n),axes=-1 )
 
-def make_kernels(t,betas,g=None,window=True,alpha=0.5,Z=50.,Theta=0.,half_norm=True,Voltage_modes=False):
+def make_kernels(t,betas,g=None,window=True,alpha=0.5,Z=50.,Theta=0.,half_norm=True):
     dt = abs(t[1]-t[0])
-    # VOLTAGEMODES IS DEPRECATED IT SHOULD BE REMOVED
-    if Voltage_modes :
-        ks   = delta(t,Theta,Z)
-        if g is not None :
-            filters = betas/g
-        else :
-            filters = betas            
-        n = ks.shape[-1]
-        filters =  _np.fft.fftshift( _np.fft.irfft(filters,n),axes=-1 ) # beta(t)       
-        ks = ks*filters 
-        freq = gen_freq(len(t),dt)
-        fbar = f_bar(betas,freq)
-        ks  /= ( _np.sqrt( fbar[...,None] )  ) # ks = 1/ ( sqrt(Zh |fbar|) delta_t ) * beta(t)
+  
+    ks = k_Theta(t,Theta,Z)
+    if window is True :
+        T = _tukey(ks.shape[-1],alpha=alpha)
+        ks = ks*T
+    if g is not None :
+        filters = betas/g
     else :
-        ks = k_Theta(t,Theta,Z)
-        if window is True :
-            T = _tukey(ks.shape[-1],alpha=alpha)
-            ks = ks*T
-        if g is not None :
-            filters = betas/g
-        else :
-            filters = betas
-        ks = apply_filters(ks,filters)
+        filters = betas
+    ks = apply_filters(ks,filters)
+    
     if half_norm :
         ks, hn = half_normalization(ks,dt)
     else :
