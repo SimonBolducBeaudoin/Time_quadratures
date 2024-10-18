@@ -1,9 +1,9 @@
 #pragma once
-#include <omp_extra.h>
 #include <histogram2D.h>
+#include <omp_extra.h>
 
+#include <algorithm> // For std::max
 #include <sys/types.h>
-#include <algorithm>   // For std::max
 
 #include <pybind11/complex.h>
 #include <pybind11/numpy.h>
@@ -26,173 +26,213 @@ typedef py::array_t<uint64_t, py::array::c_style> np_uint64_t;
 typedef py::array_t<complex_f, py::array::c_style> np_complex_f;
 typedef py::array_t<complex_d, py::array::c_style> np_complex_d;
 
-template <class FloatType, class BinType, class DataType> class TimeQuad_FFT_to_Hist2D {
-    /*Parent class of all specializations*/
-    // public :
-    // py::array_t<BinType,py::array::c_style> get_Histograms_py();
-    // private :
-    // uint n_prod ;
-    // std::vector<ssize_t> ks_shape;
-    // uint nofbins ;
-    // Multi_array<BinType,2,uint32_t> Hs ; // [n_prod][nofbins]
-    // void reset();
+template <class FloatType, class BinType, class DataType>
+class TimeQuad_FFT_to_Hist2D {
+  /*Parent class of all specializations*/
+  // public :
+  // py::array_t<BinType,py::array::c_style> get_Histograms_py();
+  // private :
+  // uint n_prod ;
+  // std::vector<ssize_t> ks_shape;
+  // uint nofbins ;
+  // Multi_array<BinType,2,uint32_t> Hs ; // [n_prod][nofbins]
+  // void reset();
 };
 
-template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<double, BinType, DataType> {
-  public:
-    // Contructor
-    TimeQuad_FFT_to_Hist2D(np_double ks, py::array_t<DataType, py::array::c_style> data, double dt,
-                           uint l_fft, uint nofbins, double max, int n_threads);
-    // Destructor
-    ~TimeQuad_FFT_to_Hist2D();
+template <class BinType, class DataType>
+class TimeQuad_FFT_to_Hist2D<double, BinType, DataType> {
+public:
+  // Contructor
+  TimeQuad_FFT_to_Hist2D(np_double ks,
+                         py::array_t<DataType, py::array::c_style> data,
+                         double dt, uint l_fft, uint nofbins, double max,
+                         int n_threads);
+  // Destructor
+  ~TimeQuad_FFT_to_Hist2D();
 
-    void execute(Multi_array<DataType, 1, uint64_t> &data);
-    void execute_py(np_double &ks, py::array_t<DataType, py::array::c_style> &data);
+  void execute(Multi_array<DataType, 1, uint64_t> &data);
+  void execute_py(np_double &ks,
+                  py::array_t<DataType, py::array::c_style> &data);
 
-    static py::array_t<double> abscisse_py(double max, uint nofbins);
+  static py::array_t<double> abscisse_py(double max, uint nofbins);
 
-    // Returns only the valid part of the convolution
-    py::array_t<BinType, py::array::c_style> get_Histograms_py(); // Data are copied
-    void reset();
+  // Returns only the valid part of the convolution
+  py::array_t<BinType, py::array::c_style>
+  get_Histograms_py(); // Data are copied
+  void reset();
 
-    // Utilities
-    uint compute_n_prod(np_double &ks);
-    std::vector<ssize_t> get_shape(np_double &ks);
-    uint compute_l_kernels(np_double &ks);
-    uint64_t compute_l_data(py::array_t<DataType, py::array::c_style> &data);
-    uint64_t compute_l_valid(uint l_kernel, uint64_t l_data) { return l_data - l_kernel + 1; };
-    uint64_t compute_l_full(uint l_kernel, uint64_t l_data) { return l_kernel + l_data - 1; };
-    Multi_array<double, 2, uint32_t> copy_ks(np_double &np_ks, uint n_prod);
+  // Utilities
+  uint compute_n_prod(np_double &ks);
+  std::vector<ssize_t> get_shape(np_double &ks);
+  uint compute_l_kernels(np_double &ks);
+  uint64_t compute_l_data(py::array_t<DataType, py::array::c_style> &data);
+  uint64_t compute_l_valid(uint l_kernel, uint64_t l_data) {
+    return l_data - l_kernel + 1;
+  };
+  uint64_t compute_l_full(uint l_kernel, uint64_t l_data) {
+    return l_kernel + l_data - 1;
+  };
+  Multi_array<double, 2, uint32_t> copy_ks(np_double &np_ks, uint n_prod);
 
-    uint compute_l_chunk(uint l_kernel, uint l_fft) { return l_fft - l_kernel + 1; };
-    uint compute_n_chunks(uint64_t l_data, uint l_chunk) { return l_data / l_chunk; };
-    uint compute_l_reste(uint64_t l_data, uint l_chunk) { return l_data % l_chunk; };
-    uint compute_l_qs(uint l_kernel, uint n_chunks) { return (n_chunks + 1) * (l_kernel - 1); };
+  uint compute_l_chunk(uint l_kernel, uint l_fft) {
+    return l_fft - l_kernel + 1;
+  };
+  uint compute_n_chunks(uint64_t l_data, uint l_chunk) {
+    return l_data / l_chunk;
+  };
+  uint compute_l_reste(uint64_t l_data, uint l_chunk) {
+    return l_data % l_chunk;
+  };
+  uint compute_l_qs(uint l_kernel, uint n_chunks) {
+    return (n_chunks + 1) * (l_kernel - 1);
+  };
 
-  private:
-    uint n_prod;
-	uint n_hist;
-    std::vector<ssize_t> ks_shape;
-    uint l_kernel;
-    uint64_t l_data; //
-    uint64_t l_valid;
-    uint64_t l_full;
-    double dt;
-    uint l_fft; // Lenght(/number of elements) of the FFT used for FFT convolution
-    uint nofbins;
-    double max;
-    double bin_width;
-    int n_threads;
-    uint l_chunk; // The length of a chunk
-    uint n_chunks;
-    uint l_reste;
-    uint l_qs;
-    uint l_qs_chunk;
+private:
+  uint n_prod;
+  uint n_hist;
+  std::vector<ssize_t> ks_shape;
+  uint l_kernel;
+  uint64_t l_data; //
+  uint64_t l_valid;
+  uint64_t l_full;
+  double dt;
+  uint l_fft; // Lenght(/number of elements) of the FFT used for FFT convolution
+  uint nofbins;
+  double max;
+  double bin_width;
+  int n_threads;
+  uint l_chunk; // The length of a chunk
+  uint n_chunks;
+  uint l_reste;
+  uint l_qs;
+  uint l_qs_chunk;
 
-    Multi_array<double, 2, uint32_t> ks;
-    Multi_array<double, 2> quads;
+  Multi_array<double, 2, uint32_t> ks;
+  Multi_array<double, 2> quads;
 
-    fftw_plan kernel_plan;
-    fftw_plan g_plan;
-    fftw_plan h_plan;
+  fftw_plan kernel_plan;
+  fftw_plan g_plan;
+  fftw_plan h_plan;
 
-    // Pointers to all the complex kernels
-    Multi_array<complex_d, 2, uint32_t> ks_complex; // [n_prod][frequency]
-    Multi_array<double, 2, uint32_t> gs;    // 			[thread_num][frequency] Catches data from data*
-    Multi_array<complex_d, 2, uint32_t> fs; // 			[thread_num][frequency] Catches DFT of data
-    Multi_array<complex_d, 3, uint32_t> hs; // [n_prod]	[thread_num][frequency]
-    Histogram2D<BinType, double> Hs;   		// [n_hist][nofbins][nofbins]
+  // Pointers to all the complex kernels
+  Multi_array<complex_d, 2, uint32_t> ks_complex; // [n_prod][frequency]
+  Multi_array<double, 2, uint32_t>
+      gs; // 			[thread_num][frequency] Catches data from data*
+  Multi_array<complex_d, 2, uint32_t>
+      fs; // 			[thread_num][frequency] Catches DFT of data
+  Multi_array<complex_d, 3, uint32_t> hs; // [n_prod]	[thread_num][frequency]
+  Histogram2D<BinType, double> Hs;        // [n_hist][nofbins][nofbins]
 
-    void checks();
-    void prepare_plans();
-    void destroy_plans();
+  void checks();
+  void prepare_plans();
+  void destroy_plans();
 
-    void prepare_kernels(np_double &ks);
-    void execution_checks(np_double &ks, py::array_t<DataType, py::array::c_style> &data);
-	
+  void prepare_kernels(np_double &ks);
+  void execution_checks(np_double &ks,
+                        py::array_t<DataType, py::array::c_style> &data);
 };
 
-template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<float, BinType, DataType> {
-  public:
-    // Contructor
-    TimeQuad_FFT_to_Hist2D(np_double ks, py::array_t<DataType, py::array::c_style> data, float dt,
-                           uint l_fft, uint nofbins, double max, int n_threads);
-    // Destructor
-    ~TimeQuad_FFT_to_Hist2D();
+template <class BinType, class DataType>
+class TimeQuad_FFT_to_Hist2D<float, BinType, DataType> {
+public:
+  // Contructor
+  TimeQuad_FFT_to_Hist2D(np_double ks,
+                         py::array_t<DataType, py::array::c_style> data,
+                         float dt, uint l_fft, uint nofbins, double max,
+                         int n_threads);
+  // Destructor
+  ~TimeQuad_FFT_to_Hist2D();
 
-    void execute(Multi_array<DataType, 1, uint64_t> &data);
-    void execute_py(np_double &ks, py::array_t<DataType, py::array::c_style> &data);
+  void execute(Multi_array<DataType, 1, uint64_t> &data);
+  void execute_py(np_double &ks,
+                  py::array_t<DataType, py::array::c_style> &data);
 
-    static py::array_t<double> abscisse_py(double max, uint nofbins);
+  static py::array_t<double> abscisse_py(double max, uint nofbins);
 
-    // Returns only the valid part of the convolution
-    py::array_t<BinType, py::array::c_style> get_Histograms_py(); // Data are copied
-    void reset();
+  // Returns only the valid part of the convolution
+  py::array_t<BinType, py::array::c_style>
+  get_Histograms_py(); // Data are copied
+  void reset();
 
-    // Utilities
-    uint compute_n_prod(np_double &ks);
-    std::vector<ssize_t> get_shape(np_double &ks);
-    uint compute_l_kernels(np_double &ks);
-    uint64_t compute_l_data(py::array_t<DataType, py::array::c_style> &data);
-    uint64_t compute_l_valid(uint l_kernel, uint64_t l_data) { return l_data - l_kernel + 1; };
-    uint64_t compute_l_full(uint l_kernel, uint64_t l_data) { return l_kernel + l_data - 1; };
-    Multi_array<float, 2, uint32_t> copy_ks(np_double &np_ks, uint n_prod);
+  // Utilities
+  uint compute_n_prod(np_double &ks);
+  std::vector<ssize_t> get_shape(np_double &ks);
+  uint compute_l_kernels(np_double &ks);
+  uint64_t compute_l_data(py::array_t<DataType, py::array::c_style> &data);
+  uint64_t compute_l_valid(uint l_kernel, uint64_t l_data) {
+    return l_data - l_kernel + 1;
+  };
+  uint64_t compute_l_full(uint l_kernel, uint64_t l_data) {
+    return l_kernel + l_data - 1;
+  };
+  Multi_array<float, 2, uint32_t> copy_ks(np_double &np_ks, uint n_prod);
 
-    uint compute_l_chunk(uint l_kernel, uint l_fft) { return l_fft - l_kernel + 1; };
-    uint compute_n_chunks(uint64_t l_data, uint l_chunk) { return l_data / l_chunk; };
-    uint compute_l_reste(uint64_t l_data, uint l_chunk) { return l_data % l_chunk; };
-    uint compute_l_qs(uint l_kernel, uint n_chunks) { return (n_chunks + 1) * (l_kernel - 1); };
+  uint compute_l_chunk(uint l_kernel, uint l_fft) {
+    return l_fft - l_kernel + 1;
+  };
+  uint compute_n_chunks(uint64_t l_data, uint l_chunk) {
+    return l_data / l_chunk;
+  };
+  uint compute_l_reste(uint64_t l_data, uint l_chunk) {
+    return l_data % l_chunk;
+  };
+  uint compute_l_qs(uint l_kernel, uint n_chunks) {
+    return (n_chunks + 1) * (l_kernel - 1);
+  };
 
-  private:
-    uint n_prod;
-	uint n_hist;
-    std::vector<ssize_t> ks_shape;
-    uint l_kernel;
-    uint64_t l_data; //
-    uint64_t l_valid;
-    uint64_t l_full;
-    float dt;
-    uint l_fft; // Lenght(/number of elements) of the FFT used for FFT convolution
-    uint nofbins;
-    double max;
-    double bin_width;
-    int n_threads;
-    uint l_chunk; // The length of a chunk
-    uint n_chunks;
-    uint l_reste;
-    uint l_qs;
-    uint l_qs_chunk;
+private:
+  uint n_prod;
+  uint n_hist;
+  std::vector<ssize_t> ks_shape;
+  uint l_kernel;
+  uint64_t l_data; //
+  uint64_t l_valid;
+  uint64_t l_full;
+  float dt;
+  uint l_fft; // Lenght(/number of elements) of the FFT used for FFT convolution
+  uint nofbins;
+  double max;
+  double bin_width;
+  int n_threads;
+  uint l_chunk; // The length of a chunk
+  uint n_chunks;
+  uint l_reste;
+  uint l_qs;
+  uint l_qs_chunk;
 
-    Multi_array<float, 2, uint32_t> ks;
-    Multi_array<float, 2> quads;
+  Multi_array<float, 2, uint32_t> ks;
+  Multi_array<float, 2> quads;
 
-    fftwf_plan kernel_plan;
-    fftwf_plan g_plan;
-    fftwf_plan h_plan;
+  fftwf_plan kernel_plan;
+  fftwf_plan g_plan;
+  fftwf_plan h_plan;
 
-    // Pointers to all the complex kernels
-    Multi_array<complex_d, 2, uint32_t> ks_complex; // [n_prod][frequency]
-    Multi_array<float, 2, uint32_t> gs;    // 			[thread_num][frequency] Catches data from data*
-    Multi_array<complex_d, 2, uint32_t> fs; // 			[thread_num][frequency] Catches DFT of data
-    Multi_array<complex_d, 3, uint32_t> hs; // [n_prod]	[thread_num][frequency]
-	
-	// Using double precision histogram to keep precision after the convolution product !!!
-	// The histograms are computed using : (data + max) / (bin_width))
-	//// data is expected to be between -max and max
-	//// max is typically 2**10 bigger then data
-	//// Therefore biggested error occurs for a small data values
-	//// This lead to more binning error at the center of the histograms
-	//// The patch is to compute the convolution in float (which leads to minimal error)
-	//// And to bin using doublr precision (at practically 0 cost in performance)
-    Histogram2D<BinType, double> Hs;   		// [n_hist][nofbins][nofbins]
+  // Pointers to all the complex kernels
+  Multi_array<complex_d, 2, uint32_t> ks_complex; // [n_prod][frequency]
+  Multi_array<float, 2, uint32_t>
+      gs; // 			[thread_num][frequency] Catches data from data*
+  Multi_array<complex_d, 2, uint32_t>
+      fs; // 			[thread_num][frequency] Catches DFT of data
+  Multi_array<complex_d, 3, uint32_t> hs; // [n_prod]	[thread_num][frequency]
 
-    void checks();
-    void prepare_plans();
-    void destroy_plans();
+  // Using double precision histogram to keep precision after the convolution
+  // product !!! The histograms are computed using : (data + max) / (bin_width))
+  //// data is expected to be between -max and max
+  //// max is typically 2**10 bigger then data
+  //// Therefore biggested error occurs for a small data values
+  //// This lead to more binning error at the center of the histograms
+  //// The patch is to compute the convolution in float (which leads to minimal
+  ///error) / And to bin using doublr precision (at practically 0 cost in
+  ///performance)
+  Histogram2D<BinType, double> Hs; // [n_hist][nofbins][nofbins]
 
-    void prepare_kernels(np_double &ks);
-    void execution_checks(np_double &ks, py::array_t<DataType, py::array::c_style> &data);
-	
+  void checks();
+  void prepare_plans();
+  void destroy_plans();
+
+  void prepare_kernels(np_double &ks);
+  void execution_checks(np_double &ks,
+                        py::array_t<DataType, py::array::c_style> &data);
 };
 
 #include "TimeQuad_FFT_double_to_Hist2D.tpp"
