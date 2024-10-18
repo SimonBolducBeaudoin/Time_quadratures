@@ -111,7 +111,7 @@ template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<double, Bi
     void execution_checks(np_double &ks, py::array_t<DataType, py::array::c_style> &data);
 	
 };
-/*
+
 template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<float, BinType, DataType> {
   public:
     // Contructor
@@ -145,6 +145,7 @@ template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<float, Bin
 
   private:
     uint n_prod;
+	uint n_hist;
     std::vector<ssize_t> ks_shape;
     uint l_kernel;
     uint64_t l_data; //
@@ -170,11 +171,20 @@ template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<float, Bin
     fftwf_plan h_plan;
 
     // Pointers to all the complex kernels
-    Multi_array<complex_f, 2, uint32_t> ks_complex; // [n_prod][frequency]
-    Multi_array<float, 2, uint32_t> gs;     // [thread_num][frequency] Catches data from data*
-    Multi_array<complex_f, 2, uint32_t> fs; // [thread_num][frequency] Catches DFT of data
-    Multi_array<complex_f, 3, uint32_t> hs; // [n_prod][thread_num][frequency]
-    Multi_array<BinType, 3, uint32_t> Hs;   // [n_prod][nofbins]
+    Multi_array<complex_d, 2, uint32_t> ks_complex; // [n_prod][frequency]
+    Multi_array<float, 2, uint32_t> gs;    // 			[thread_num][frequency] Catches data from data*
+    Multi_array<complex_d, 2, uint32_t> fs; // 			[thread_num][frequency] Catches DFT of data
+    Multi_array<complex_d, 3, uint32_t> hs; // [n_prod]	[thread_num][frequency]
+	
+	// Using double precision histogram to keep precision after the convolution product !!!
+	// The histograms are computed using : (data + max) / (bin_width))
+	//// data is expected to be between -max and max
+	//// max is typically 2**10 bigger then data
+	//// Therefore biggested error occurs for a small data values
+	//// This lead to more binning error at the center of the histograms
+	//// The patch is to compute the convolution in float (which leads to minimal error)
+	//// And to bin using doublr precision (at practically 0 cost in performance)
+    Histogram2D<BinType, double> Hs;   		// [n_hist][nofbins][nofbins]
 
     void checks();
     void prepare_plans();
@@ -182,10 +192,8 @@ template <class BinType, class DataType> class TimeQuad_FFT_to_Hist2D<float, Bin
 
     void prepare_kernels(np_double &ks);
     void execution_checks(np_double &ks, py::array_t<DataType, py::array::c_style> &data);
-
-    inline void float_to_hist(float data, BinType *histogram, double max, double bin_width);
+	
 };
-*/
 
 #include "TimeQuad_FFT_double_to_Hist2D.tpp"
-//#include "TimeQuad_FFT_float_to_Hist2D.tpp"
+#include "TimeQuad_FFT_float_to_Hist2D.tpp"
