@@ -80,6 +80,12 @@ uint TimeQuad_FFT_to_Hist<float, BinType, DataType>::compute_n_prod(
     np_double &np_array) {
   py::buffer_info buffer = np_array.request();
   std::vector<ssize_t> shape = buffer.shape;
+  
+  if (shape[buffer.ndim - 2] != 2) {
+    throw std::runtime_error("There should be 2 quadratures."
+                             "kernels shape has to respect => ks.shape == (...,2,i)");
+  }
+  
   uint64_t product = 1;
   for (int i = 0; i < buffer.ndim - 1; i++) {
     product *= shape[i];
