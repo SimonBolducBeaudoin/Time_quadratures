@@ -13,12 +13,12 @@ TimeQuad_FFT_to_Hist2D<float, BinType, DataType>::TimeQuad_FFT_to_Hist2D(
       l_reste(compute_l_reste(l_data, l_chunk)),
       l_qs(compute_l_qs(l_kernel, n_chunks)), l_qs_chunk(l_kernel - 1),
       ks(copy_ks(ks, n_prod)), quads(Multi_array<float, 2>(n_prod, l_qs)),
-      ks_complex(Multi_array<complex_d, 2, uint32_t>(n_prod, (l_fft / 2 + 1))),
+      ks_complex(Multi_array<complex_f, 2, uint32_t>(n_prod, (l_fft / 2 + 1))),
       gs(Multi_array<float, 2, uint32_t>(n_threads, 2 * (l_fft / 2 + 1),
                                          fftwf_malloc, fftwf_free)),
-      fs(Multi_array<complex_d, 2, uint32_t>(n_threads, (l_fft / 2 + 1),
+      fs(Multi_array<complex_f, 2, uint32_t>(n_threads, (l_fft / 2 + 1),
                                              fftwf_malloc, fftwf_free)),
-      hs(Multi_array<complex_d, 3, uint32_t>(n_threads, n_prod, (l_fft / 2 + 1),
+      hs(Multi_array<complex_f, 3, uint32_t>(n_threads, n_prod, (l_fft / 2 + 1),
                                              fftwf_malloc, fftwf_free)),
       Hs(Histogram2D<BinType, double>(nofbins, n_threads, max, n_hist)) {
   checks();
@@ -83,6 +83,11 @@ uint TimeQuad_FFT_to_Hist2D<float, BinType, DataType>::compute_n_prod(
     np_double &np_array) {
   py::buffer_info buffer = np_array.request();
   std::vector<ssize_t> shape = buffer.shape;
+  if (shape[buffer.ndim - 2] != 2) {
+    throw std::runtime_error("There should be 2 quadratures."
+                             "kernels shape has to respect => ks.shape == (...,2,i)");
+  }
+  
   uint64_t product = 1;
   for (int i = 0; i < buffer.ndim - 1; i++) {
     product *= shape[i];
@@ -216,7 +221,7 @@ void TimeQuad_FFT_to_Hist2D<float, BinType, DataType>::execute(
       fftwf_execute_dft_c2r(h_plan,
                             reinterpret_cast<fftwf_complex *>(hs(this_thread)),
                             (float *)hs(this_thread));
-
+	  
       for (uint j = 0; j < n_prod; j += 2) {
         float *data_1 = ((float *)hs(this_thread, j)) + l_qs_chunk;
         float *data_2 = ((float *)hs(this_thread, j + 1)) + l_qs_chunk;

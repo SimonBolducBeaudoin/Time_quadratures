@@ -208,12 +208,12 @@ private:
   fftwf_plan h_plan;
 
   // Pointers to all the complex kernels
-  Multi_array<complex_d, 2, uint32_t> ks_complex; // [n_prod][frequency]
+  Multi_array<complex_f, 2, uint32_t> ks_complex; // [n_prod][frequency]
   Multi_array<float, 2, uint32_t>
       gs; // 			[thread_num][frequency] Catches data from data*
-  Multi_array<complex_d, 2, uint32_t>
+  Multi_array<complex_f, 2, uint32_t>
       fs; // 			[thread_num][frequency] Catches DFT of data
-  Multi_array<complex_d, 3, uint32_t> hs; // [n_prod]	[thread_num][frequency]
+  Multi_array<complex_f, 3, uint32_t> hs; // [n_prod]	[thread_num][frequency]
 
   // Using double precision histogram to keep precision after the convolution
   // product !!! The histograms are computed using : (data + max) / (bin_width))
