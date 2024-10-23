@@ -113,6 +113,10 @@ const char *s_TQtoH2D = "\t TimeQuad_FFTtoHist2D implements an FFT convolution f
                         "\t\t .abscisse(): Static method to obtain the abscissa (X and Y-axis) "
                         "arrays "
                         "defining the 2D histogram (square by default).";
+						
+const char *s_TQStoH2D = "\t Synchronized version of TimeQuad_FFTtoHist2D. "
+						 "Data are binned into multiple histograms corresponding to different time.	"
+						 " The number of histograms is given by the constructor argument 'period'" ;
 
 // CLASS MACROS
 #define PY_TIME_QUAD_FFT(FloatType, DataType)                                                                \
@@ -145,6 +149,18 @@ const char *s_TQtoH2D = "\t TimeQuad_FFTtoHist2D implements an FFT convolution f
         .def("execute", &TimeQuad_FFT_to_Hist2D<FloatType, BinType, DataType>::execute_py)                   \
         .def_static("abscisse", &TimeQuad_FFT_to_Hist2D<FloatType, BinType, DataType>::abscisse_py,          \
                     "max"_a.noconvert(), "nofbins"_a.noconvert());
+					
+#define PY_TIME_QUAD_SYNC_FFT_TO_HIST2D(FloatType, BinType, DataType)                           			\
+    py::class_<TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>>(                                        \
+        m, "TimeQuadSync_FFT_" #FloatType "_to_Hist2D_" #BinType "_" #DataType, s_TQStoH2D)                       \
+        .def(py::init<np_double, np_int16, double, uint, uint, uint, double, int>(), "ks"_a.noconvert(),           \
+             "data"_a.noconvert(), "dt"_a.noconvert(), "l_fft"_a.noconvert(), "nb_of_bins"_a.noconvert(), "period"_a.noconvert(),    \
+             "max"_a.noconvert(), "n_threads"_a.noconvert())                                                 \
+        .def("Histograms", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::get_Histograms_py)         \
+        .def("reset", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::reset)                          \
+        .def("execute", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::execute_py)                   \
+        .def_static("abscisse", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::abscisse_py,          \
+                    "max"_a.noconvert(), "nofbins"_a.noconvert());
 
 void init_TimeQuad_FFT(py::module &m) {
     PY_TIME_QUAD_FFT(double, int16_t);
@@ -159,8 +175,12 @@ void init_TimeQuad_FFT(py::module &m) {
     PY_TIME_QUAD_FFT_TO_HIST2D(double, uint32_t, int16_t);
     PY_TIME_QUAD_FFT_TO_HIST2D(float, uint64_t, int16_t);
     PY_TIME_QUAD_FFT_TO_HIST2D(float, uint32_t, int16_t);
+	
+	PY_TIME_QUAD_SYNC_FFT_TO_HIST2D(double, uint64_t, int16_t);
+	PY_TIME_QUAD_SYNC_FFT_TO_HIST2D(double, uint32_t, int16_t);
 }
 
 // CLOSE MACRO SCOPES
 #undef PY_TIME_QUAD_FFT
 #undef PY_TIME_QUAD_FFT_TO_HIST
+#undef PY_TIME_QUAD_SYNC_FFT_TO_HIST2D
