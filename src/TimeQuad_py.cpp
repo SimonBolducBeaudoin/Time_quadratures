@@ -178,6 +178,8 @@ void init_TimeQuad_FFT(py::module &m) {
 	
 	PY_TIME_QUAD_SYNC_FFT_TO_HIST2D(double, uint64_t, int16_t);
 	PY_TIME_QUAD_SYNC_FFT_TO_HIST2D(double, uint32_t, int16_t);
+	PY_TIME_QUAD_SYNC_FFT_TO_HIST2D(float, uint64_t, int16_t);
+	PY_TIME_QUAD_SYNC_FFT_TO_HIST2D(float, uint32_t, int16_t);
 }
 
 // CLOSE MACRO SCOPES
