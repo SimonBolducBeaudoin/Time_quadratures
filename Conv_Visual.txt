@@ -1,41 +1,41 @@
+l_invalid = l_kernel-1
+																
+l_fft			$$$$$$$$$$$$$$$$ (1024)
+l_chunk			$$$$$$$$$$$$  	 (l_fft-l_invalid)
+invalid  	    xxxx		xxxx (2*l_kernel-1)  
+valid       	    $$$$$$$$     (l_chunk-l_invalid)
+
+data		    $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$&  
+				^           ^           ^           ^           ^           ^           
+                Starting point
+block1: 		xxxx$$$$$$$$xxxx 
+                        ^ First valid point
+				(i*l_chunk)+l_invalid
+block2:                     xxxx$$$$$$$$xxxx  						 
+block3:                                 xxxx$$$$$$$$xxxx
+block4:                                          	xxxx$$$$$$$$xxxx
+																xxxx$$$$$$$$xxxx
+reste : 																	xxxx$$$$&000xxxx
++invalid																	$$$$$$$$&000xxxx
+quads:          xxxx        $$$$        $$$$        $$$$        $$$$
+                            ^
+					    (i*l_chunk) with i in [1:]
+
+quads			xxxx$$$$$$$$$$$$
+				    ^   ^   ^
+					|
+			(index%l_invalid)*l_chunk
+	
+Bytes equivalents
 32
 & 
 64
 $ 
 128
-$ $ 
+$$
 256
-$ $ $ $ 
+$$$$
 512
-$ $ $ $ $ $ $ $ 
+$$$$$$$$
 1024
-$ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ 
-
-l_invalid = l_kernel-1
-																
-l_fft			$ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $  (1024)
-l_chunk			$ $ $ $ $ $ $ $ $ $ $ $   		 (l_fft-l_invalid)
-invalid  	    x x x x 				x x x x  (2*l_kernel-1)  
-valid       	        $ $ $ $ $ $ $ $          (l_chunk-l_invalid)
-
-data		    $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ &  
-				^ Starting point        ^                       ^                       ^                       ^                       ^                       
-block1: 		x x x x $ $ $ $ $ $ $ $ x x x x  
-                        ^ First valid point
-				(i*l_chunk)+l_invalid
-block2:                                 x x x x $ $ $ $ $ $ $ $ x x x x   						 
-block3:                                     					x x x x $ $ $ $ $ $ $ $ x x x x 
-block4:                                          										x x x x $ $ $ $ $ $ $ $ x x x x 
-																												x x x x $ $ $ $ $ $ $ $ x x x x 
-reste : 																																x x x x $ $ $ $ & 0 0 0 x x x x
-+invalid																																$ $ $ $ $ $ $ $ & 0 0 0 x x x x 
-quads:          x x x x                 $ $ $ $                 $ $ $ $                 $ $ $ $                 $ $ $ $ 
-										^
-									(i*l_chunk) with i in [1:]
-
-quads			x x x x $ $ $ $ $ $ $ $ $ $ $ $ 
-						^       ^       ^
-						|
-			(index%l_invalid)*l_chunk
-		
-		
+$$$$$$$$$$$$$$$$
