@@ -210,6 +210,7 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execute(
                 float *data_2 = ((float *)hs(this_thread, j + 1)) + l_invalid;
                 uint start = (i * l_chunk + l_invalid) % period ; // referenced at the start of data
 				Hs.accumulate(data_1, data_2, l_fft - 2 * l_invalid, j / 2, start, this_thread);
+			//  Hs.accumulate( x (most local index)    , y     , ... );
             }
 			
             for (uint j = 0; j < n_prod; j++) {
