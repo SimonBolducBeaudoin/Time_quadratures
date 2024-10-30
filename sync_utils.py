@@ -6,7 +6,7 @@ from fractions import Fraction as _Fraction
 from typeguard import typechecked as _typechecked
 
 @_typechecked
-def get_perdiod(f: int,sampling_rate: int = 32000000000) -> int:
+def get_period(f: int,sampling_rate: int = 32000000000) -> int:
     """
     Returns the period at which the sampling rate will be commensurate with f.
     Example f = 12 sampling_rate=32.
