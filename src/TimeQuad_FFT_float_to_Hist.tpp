@@ -193,30 +193,53 @@ void TimeQuad_FFT_to_Hist<float, BinType, DataType>::execute(Multi_array<DataTyp
 #pragma omp barrier
 #pragma omp for
         for (uint i = 0; i < n_chunks; i++) {
-            for (uint j = 0; j < l_chunk; j++) {
-                gs(this_thread, j) = (float)data[i * l_chunk + j];
+            { // Optimisation using restrict pointers
+                float* __restrict gs_p;
+                const DataType* __restrict data_p = data.get_ptr();
+                for (uint j = 0; j < l_chunk; j++) {
+                gs_p = gs(this_thread)  ;
+                gs_p[j] = (float)data_p[i * l_chunk + j];
+                }
             }
             fftwf_execute_dft_r2c(g_plan, gs[this_thread],
                                   reinterpret_cast<fftwf_complex *>(fs[this_thread]));
-            for (uint j = 0; j < n_prod; j++) {
-                for (uint k = 0; k < (l_fft / 2 + 1); k++) {
-                    hs(this_thread, j, k) = ks_complex(j, k) * fs(this_thread, k);
+            { // Optimisation using restrict pointers
+                uint len = (l_fft / 2 + 1);
+                float* __restrict hs_p= (float*)hs(this_thread);
+                const float* __restrict ks_complex_p = (float*)ks_complex.get_ptr();
+                const float* __restrict fs_p = (float*)fs(this_thread);
+                for (uint j = 0; j < n_prod; j++) {
+                    for (uint k = 0; k < len; k+=2) {
+                        hs_p[j*len+k] = ks_complex_p[j*len+k] * fs_p[k] - ks_complex_p[j*len+k+1] * fs_p[k+1];
+                    }
+                }
+                for (uint j = 0; j < n_prod; j++) {
+                    for (uint k = 0; k < len; k+=2) {
+                        hs_p[j*len+k+1] = ks_complex_p[j*len+k] * fs_p[k+1] + ks_complex_p[j*len+k+1] * fs_p[k];
+                    }
                 }
             }
+            
             fftwf_execute_dft_c2r(h_plan, reinterpret_cast<fftwf_complex *>(hs(this_thread)),
                                   (float *)hs(this_thread));
 
             for (uint j = 0; j < n_prod; j++) {
                 ACCUMULATE(this_thread, j, ((float *)hs(this_thread, j)) + l_qs_chunk, l_fft - 2 * l_qs_chunk)
             }
-            for (uint j = 0; j < n_prod; j++) {
-                for (uint k = 0; k < l_qs_chunk; k++) {
-#pragma omp atomic update
-                    quads(j, i * l_qs_chunk + k) += ((float *)hs(this_thread, j))[k];
-#pragma omp atomic update
-                    quads(j, (i + 1) * l_qs_chunk + k) += ((float *)hs(this_thread, j))[l_chunk + k];
+            
+            {
+                for (uint j = 0; j < n_prod; j++) {
+                    for (uint k = 0; k < l_qs_chunk; k++) {
+                        float* __restrict quads_p=quads(j);
+                        const float* __restrict hs_p = (float *)hs(this_thread, j);
+                        #pragma omp atomic update
+                        quads_p[i * l_qs_chunk + k] += hs_p[k];
+                        #pragma omp atomic update
+                        quads_p[ (i + 1) * l_qs_chunk + k] += hs_p[l_chunk + k];
+                    }
                 }
             }
+            
         }
 #pragma omp single
         {
