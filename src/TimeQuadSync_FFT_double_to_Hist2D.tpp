@@ -277,7 +277,8 @@ template <class BinType, class DataType>
 py::array_t<BinType, py::array::c_style>
 TimeQuadSync_FFT_to_Hist2D<double, BinType, DataType>::get_Histograms_py() {
 	std::vector<ssize_t> shape(ks_shape.begin(),ks_shape.end()-2);
-	shape.push_back(uint(period)); 
+	shape.insert(shape.begin(), n_exp);  // Insert n_exp at the beginning
+    shape.push_back(uint(period)); 
     shape.push_back(uint(nofbins));
     shape.push_back(uint(nofbins));
 	
