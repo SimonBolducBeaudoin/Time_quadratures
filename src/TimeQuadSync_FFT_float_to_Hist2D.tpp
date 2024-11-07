@@ -77,7 +77,7 @@ uint TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::compute_n_ks(np_doubl
 
     if (shape[buffer.ndim - 2] != 2) {
         throw std::runtime_error("There should be 2 quadratures."
-                                 "kernels shape has to respect => ks.shape == (...,2,i)");
+                                 "kernels shape has to respect => ks.shape == (...,2,l_kernel)");
     }
 
     uint64_t product = 1;
@@ -280,7 +280,8 @@ template <class BinType, class DataType> void TimeQuadSync_FFT_to_Hist2D<float, 
 template <class BinType, class DataType>
 py::array_t<BinType, py::array::c_style>
 TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::get_Histograms_py() {
-	std::vector<ssize_t> shape(ks_shape.begin(),ks_shape.end()-2);
+	std::vector<ssize_t> shape(ks_shape.begin(),ks_shape.end()-2); // ks.shape == (...,2,l_kernel)
+    shape.insert(shape.begin(), n_exp);  // Insert n_exp at the beginning
 	shape.push_back(uint(period)); 
     shape.push_back(uint(nofbins));
     shape.push_back(uint(nofbins));
