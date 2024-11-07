@@ -2,32 +2,30 @@
 template <class BinType, class DataType>
 TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::TimeQuadSync_FFT_to_Hist2D(
     np_double ks, py::array_t<DataType, py::array::c_style> data, float dt, uint l_fft, uint nofbins, uint period,
-    double max, int n_threads)
-    : n_prod(compute_n_prod(ks)), n_hist(std::max(n_prod / 2, (uint)1)), ks_shape(get_shape(ks)),
+    double max, int n_threads,uint n_exp)
+    : n_ks(compute_n_ks(ks)),n_exp(std::max(n_exp, (uint)1)), n_hist(std::max(n_ks / 2, (uint)1)),
+      ks_shape(get_shape(ks)),
       l_kernel(compute_l_kernels(ks)), l_data(compute_l_data(data)),
       l_valid(compute_l_valid(l_kernel, l_data)), l_full(compute_l_full(l_kernel, l_data)), dt(dt),
-      l_fft(l_fft), nofbins(nofbins), period(std::max(period, (uint)1)), 
+      l_fft(l_fft), nofbins(nofbins), period(std::max(period, (uint)1)),
 	  max(max), bin_width(2.0 * max / (nofbins)), n_threads(n_threads),
       l_chunk(compute_l_chunk(l_kernel, l_fft)), n_chunks(compute_n_chunks(l_data, l_chunk)),
       l_reste(compute_l_reste(l_data, l_chunk)), l_qs(compute_l_qs(l_kernel, n_chunks)),
-      l_invalid(l_kernel - 1), ks(copy_ks(ks, n_prod)), quads(Multi_array<float, 2>(n_prod, l_qs)),
-      ks_complex(Multi_array<complex_f, 2, uint32_t>(n_prod, (l_fft / 2 + 1))),
+      l_invalid(l_kernel - 1), ks(copy_ks(ks, n_ks)), quads(Multi_array<float, 2>(n_ks, l_qs)),
+      ks_complex(Multi_array<complex_f, 2, uint32_t>(n_ks, (l_fft / 2 + 1))),
       gs(Multi_array<float, 2, uint32_t>(n_threads, 2 * (l_fft / 2 + 1), fftwf_malloc, fftwf_free)),
       fs(Multi_array<complex_f, 2, uint32_t>(n_threads, (l_fft / 2 + 1), fftwf_malloc, fftwf_free)),
-      hs(Multi_array<complex_f, 3, uint32_t>(n_threads, n_prod, (l_fft / 2 + 1), fftwf_malloc, fftwf_free)),
-      Hs(Histogram2D_periodic<BinType, double>(nofbins, n_threads, max, n_hist,period)) {
+      hs(Multi_array<complex_f, 3, uint32_t>(n_threads, n_ks, (l_fft / 2 + 1), fftwf_malloc, fftwf_free)),
+      Hs(Histogram2D_periodic<BinType, double>(nofbins, n_threads, max, n_exp*n_hist,period)) {
     checks();
     prepare_plans();
     reset(); // initialize Hs memory to 0.
-	omp_set_nested(1);
-	omp_set_max_active_levels(2);
 }
 
 // DESTRUCTOR
 template <class BinType, class DataType>
 TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::~TimeQuadSync_FFT_to_Hist2D() {
     destroy_plans();
-	omp_set_nested(0);
 }
 
 // CHECKS
@@ -36,8 +34,8 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::checks() {
     if (2 * l_kernel - 2 > l_fft) {
         throw std::runtime_error("l_kernel to big, you have to repsect 2*l_kernel-2 <= l_fft");
     }
-    if (n_prod % 2 == 1) {
-        throw std::runtime_error("n_prod i.e. the number of kernels given to "
+    if (n_ks % 2 == 1) {
+        throw std::runtime_error("n_ks i.e. the number of kernels given to "
                                  "TimeQuad_to_Hist2D needs to be a even number.");
     }
 }
@@ -52,7 +50,7 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::prepare_plans() {
     int n[] = {(int)l_fft};
     h_plan = fftwf_plan_many_dft_c2r(1,      // rank == 1D transform
                                     n,      //  list of dimensions
-                                    n_prod, // howmany (to do many ffts on the same core)
+                                    n_ks,// howmany (to do many ffts on the same core)
                                     reinterpret_cast<fftwf_complex *>(hs(0, 0)), // input
                                     NULL,                                       // inembed
                                     1,                                          // istride
@@ -73,7 +71,7 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::destroy_plans() {
 }
 
 template <class BinType, class DataType>
-uint TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::compute_n_prod(np_double &np_array) {
+uint TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::compute_n_ks(np_double &np_array) {
     py::buffer_info buffer = np_array.request();
     std::vector<ssize_t> shape = buffer.shape;
 
@@ -91,7 +89,7 @@ uint TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::compute_n_prod(np_dou
 
 template <class BinType, class DataType>
 Multi_array<float, 2, uint32_t>
-TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::copy_ks(np_double &np_ks, uint n_prod) {
+TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::copy_ks(np_double &np_ks, uint n_ks) {
     /*Only works on contiguous arrays (i.e. no holes)*/
     py::buffer_info buffer = np_ks.request();
     std::vector<py::ssize_t> shape = buffer.shape;     // shape copy
@@ -105,7 +103,7 @@ TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::copy_ks(np_double &np_ks, 
     py::ssize_t strides_m1 = strides.back() / 2; // strides[-1]
     strides.pop_back();
     py::ssize_t strides_m2 = strides.back() / 2; // strides[-2]
-    Multi_array<float, 2, uint32_t> ks(new_ptr, n_prod, shape.back() /*shape[-1]*/,
+    Multi_array<float, 2, uint32_t> ks(new_ptr, n_ks, shape.back() /*shape[-1]*/,
                                        strides_m2 /*strides[-2]*/, strides_m1 /*strides[-1]*/);
     return ks;
 }
@@ -132,9 +130,9 @@ uint64_t TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::compute_l_data(
 
 template <class BinType, class DataType>
 void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::prepare_kernels(np_double &np_ks) {
-    Multi_array<float, 2, uint32_t> ks = copy_ks(np_ks, n_prod);
+    Multi_array<float, 2, uint32_t> ks = copy_ks(np_ks, n_ks);
     float norm_factor = dt / l_fft; /*MOVED IN PREPARE_KERNELS*/
-    for (uint j = 0; j < n_prod; j++) {
+    for (uint j = 0; j < n_ks; j++) {
         /* Value assignment and zero padding */
         for (uint i = 0; i < l_kernel; i++) {
             ((float *)ks_complex(j))[i] = ks(j, i) * norm_factor; /*Normalisation done here*/
@@ -149,7 +147,7 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::prepare_kernels(np_do
 
 template <class BinType, class DataType>
 void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execution_checks(
-    np_double &ks, py::array_t<DataType, py::array::c_style> &data) {
+    np_double &ks, py::array_t<DataType, py::array::c_style> &data,uint i_exp) {
     if (this->l_data != (uint64_t)data.request().shape[data.request().ndim - 1]) {
         throw std::runtime_error("Error: Data length does not match the length "
                                  "provided at construction.");
@@ -158,12 +156,15 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execution_checks(
         throw std::runtime_error("Error: Shape of 'ks' does not match the shape "
                                  "provided at construction.");
     }
+    if (i_exp >= this->n_exp) {
+        throw std::runtime_error("Error: i_exp should be between 0 and n_exp.");
+    }
 }
 
 template <class BinType, class DataType>
 void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execute_py(
-    np_double &ks, py::array_t<DataType, py::array::c_style> &np_data) {
-    execution_checks(ks, np_data);
+    np_double &ks, py::array_t<DataType, py::array::c_style> &np_data, uint i_exp) {
+    execution_checks(ks, np_data,i_exp);
     if (omp_get_num_threads() != n_threads) // Makes sure the declared number of
                                             // thread if the same as planned
     {
@@ -171,17 +172,17 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execute_py(
     }
     prepare_kernels(ks);
     Multi_array<DataType, 1, uint64_t> data = Multi_array<DataType, 1, uint64_t>::numpy_share(np_data);
-    execute(data);
+    execute(data,i_exp);
 }
 
 template <class BinType, class DataType>
 void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execute(
-    Multi_array<DataType, 1, uint64_t> &data) {
+    Multi_array<DataType, 1, uint64_t> &data, uint i_exp) {
 	#pragma omp parallel num_threads(n_threads)
     {
         manage_thread_affinity();
 		#pragma omp for simd collapse(2) nowait
-        for (uint j = 0; j < n_prod; j++) {
+        for (uint j = 0; j < n_ks; j++) {
             for (uint i = 0; i < (n_chunks + 1) * l_invalid; i++) {
                 quads(j, i) = 0.0;
             }
@@ -197,7 +198,7 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execute(
                 gs(this_thread, j) = (float)data[i * l_chunk + j];
             }
             fftwf_execute_dft_r2c(g_plan, gs[this_thread], reinterpret_cast<fftwf_complex *>(fs[this_thread]));
-            for (uint j = 0; j < n_prod; j++) {
+            for (uint j = 0; j < n_ks; j++) {
                 for (uint k = 0; k < (l_fft / 2 + 1); k++) {
                     hs(this_thread, j, k) = ks_complex(j, k) * fs(this_thread, k);
                 }
@@ -205,15 +206,15 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execute(
             fftwf_execute_dft_c2r(h_plan, reinterpret_cast<fftwf_complex *>(hs(this_thread)),
                                  (float *)hs(this_thread));
 
-            for (uint j = 0; j < n_prod; j += 2) {
+            for (uint j = 0; j < n_ks; j += 2) {
                 float *data_1 = ((float *)hs(this_thread, j)) + l_invalid;
                 float *data_2 = ((float *)hs(this_thread, j + 1)) + l_invalid;
                 uint start = (i * l_chunk + l_invalid) % period ; // referenced at the start of data
-				Hs.accumulate(data_1, data_2, l_fft - 2 * l_invalid, j / 2, start, this_thread);
+				Hs.accumulate(data_1, data_2, l_fft - 2 * l_invalid, i_exp+j/2, start,this_thread);
 			//  Hs.accumulate( x (most local index)    , y     , ... );
             }
 			
-            for (uint j = 0; j < n_prod; j++) {
+            for (uint j = 0; j < n_ks; j++) {
                 for (uint k = 0; k < l_invalid; k++) {
 					#pragma omp atomic update
                     quads(j, i * l_invalid + k) += ((float *)hs(this_thread, j))[k];
@@ -235,14 +236,14 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execute(
                 }
                 fftwf_execute_dft_r2c(g_plan, gs[this_thread],
                                      reinterpret_cast<fftwf_complex *>(fs[this_thread]));
-                for (uint j = 0; j < n_prod; j++) {
+                for (uint j = 0; j < n_ks; j++) {
                     for (uint k = 0; k < (l_fft / 2 + 1); k++) {
                         hs(this_thread, j, k) = ks_complex(j, k) * fs(this_thread, k);
                     }
                 }
                 fftwf_execute_dft_c2r(h_plan, reinterpret_cast<fftwf_complex *>(hs(this_thread)),
                                      (float *)hs(this_thread));
-                for (uint j = 0; j < n_prod; j += 2) {
+                for (uint j = 0; j < n_ks; j += 2) {
                     for (uint k = 0; k < l_kernel - 1; k++) {
                         ((float *)hs(this_thread, j))[k] += quads(j, (n_chunks)*l_invalid + k);
                         ((float *)hs(this_thread, j + 1))[k] += quads(j + 1, (n_chunks)*l_invalid + k);
@@ -251,7 +252,7 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execute(
                     float *data_1 = (float *)hs(this_thread, j);
                     float *data_2 = (float *)hs(this_thread, j + 1);
                     uint start = (n_chunks * l_chunk) % period ;
-					Hs.accumulate(data_1, data_2, l_reste, j / 2, start, this_thread);
+					Hs.accumulate(data_1, data_2, l_reste, i_exp+j/2, start, this_thread);
                 }
             }
         }
@@ -259,14 +260,16 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execute(
         for (uint i = 1; i < n_chunks; i++) {
             ///////Accumulate the invalid/interblock part of the convolution
             uint start = (i * l_chunk) % period ; 
-            for (uint j = 0; j < n_prod; j += 2) {
+            for (uint j = 0; j < n_ks; j += 2) {
                 float *data_1 = quads(j) + i * l_invalid;
                 float *data_2 = quads(j + 1) + i * l_invalid;
-                Hs.accumulate(data_1, data_2, l_invalid, j / 2, start, this_thread);
+                Hs.accumulate(data_1, data_2, l_invalid, i_exp+j/2, start, this_thread);
             }
         }
     }
-    Hs.reduction();
+    for (uint j = 0; j < n_ks; j += 2) {
+        Hs.reduction(i_exp+j/2);
+    }
 }
 
 template <class BinType, class DataType> void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::reset() {

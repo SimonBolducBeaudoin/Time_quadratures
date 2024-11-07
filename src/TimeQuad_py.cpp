@@ -153,12 +153,13 @@ const char *s_TQStoH2D = "\t Synchronized version of TimeQuad_FFTtoHist2D. "
 #define PY_TIME_QUAD_SYNC_FFT_TO_HIST2D(FloatType, BinType, DataType)                           			\
     py::class_<TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>>(                                        \
         m, "TimeQuadSync_FFT_" #FloatType "_to_Hist2D_" #BinType "_" #DataType, s_TQStoH2D)                       \
-        .def(py::init<np_double, np_int16, double, uint, uint, uint, double, int>(), "ks"_a.noconvert(),           \
+        .def(py::init<np_double, np_int16, double, uint, uint, uint, double, int,uint>(), "ks"_a.noconvert(),           \
              "data"_a.noconvert(), "dt"_a.noconvert(), "l_fft"_a.noconvert(), "nb_of_bins"_a.noconvert(), "period"_a.noconvert(),    \
-             "max"_a.noconvert(), "n_threads"_a.noconvert())                                                 \
+             "max"_a.noconvert(), "n_threads"_a.noconvert(),"n_exp"_a=1)                                                 \
         .def("Histograms", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::get_Histograms_py)         \
         .def("reset", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::reset)                          \
-        .def("execute", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::execute_py)                   \
+        .def("execute", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::execute_py, \
+                "ks"_a.noconvert(), "data"_a.noconvert(),"i_exp"_a = 0 )                  \
         .def_static("abscisse", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::abscisse_py,          \
                     "max"_a.noconvert(), "nofbins"_a.noconvert());
 

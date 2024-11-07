@@ -31,10 +31,10 @@ template <class FloatType, class BinType, class DataType> class TimeQuadSync_FFT
     // public :
     // py::array_t<BinType,py::array::c_style> get_Histograms_py();
     // private :
-    // uint n_prod ;
+    // uint n_ks ;
     // std::vector<ssize_t> ks_shape;
     // uint nofbins ;
-    // Multi_array<BinType,2,uint32_t> Hs ; // [n_prod][nofbins]
+    // Multi_array<BinType,2,uint32_t> Hs ; // [n_ks][nofbins]
     // void reset();
 };
 
@@ -42,12 +42,12 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<double
   public:
     // Contructor
     TimeQuadSync_FFT_to_Hist2D(np_double ks, py::array_t<DataType, py::array::c_style> data, double dt,
-                               uint l_fft, uint nofbins, uint period, double max, int n_threads);
+                               uint l_fft, uint nofbins, uint period, double max, int n_threads, uint n_exp=1);
     // Destructor
     ~TimeQuadSync_FFT_to_Hist2D();
 
-    void execute(Multi_array<DataType, 1, uint64_t> &data);
-    void execute_py(np_double &ks, py::array_t<DataType, py::array::c_style> &data);
+    void execute(Multi_array<DataType, 1, uint64_t> &data, uint i_exp);
+    void execute_py(np_double &ks, py::array_t<DataType, py::array::c_style> &data, uint i_exp);
 
     static py::array_t<double> abscisse_py(double max, uint nofbins);
 
@@ -56,13 +56,13 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<double
     void reset();
 
     // Utilities
-    uint compute_n_prod(np_double &ks);
+    uint compute_n_ks(np_double &ks);
     std::vector<ssize_t> get_shape(np_double &ks);
     uint compute_l_kernels(np_double &ks);
     uint64_t compute_l_data(py::array_t<DataType, py::array::c_style> &data);
     uint64_t compute_l_valid(uint l_kernel, uint64_t l_data) { return l_data - l_kernel + 1; };
     uint64_t compute_l_full(uint l_kernel, uint64_t l_data) { return l_kernel + l_data - 1; };
-    Multi_array<double, 2, uint32_t> copy_ks(np_double &np_ks, uint n_prod);
+    Multi_array<double, 2, uint32_t> copy_ks(np_double &np_ks, uint n_ks);
 
     uint compute_l_chunk(uint l_kernel, uint l_fft) { return l_fft - l_kernel + 1; };
     uint compute_n_chunks(uint64_t l_data, uint l_chunk) { return l_data / l_chunk; };
@@ -70,8 +70,9 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<double
     uint compute_l_qs(uint l_kernel, uint n_chunks) { return (n_chunks + 1) * (l_kernel - 1); };
 
   private:
-    uint n_prod;
-    uint n_hist;
+    uint n_ks;      // number of kernels
+    uint n_exp;     // number of different experiments
+    uint n_hist;    // number of histograms in each experiments
     std::vector<ssize_t> ks_shape;
     uint l_kernel;
     uint64_t l_data; //
@@ -98,11 +99,11 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<double
     fftw_plan h_plan;
 
     // Pointers to all the complex kernels
-    Multi_array<complex_d, 2, uint32_t> ks_complex; // [n_prod][frequency]
+    Multi_array<complex_d, 2, uint32_t> ks_complex; // [n_ks][frequency]
     Multi_array<double, 2, uint32_t> gs;            // 			[thread_num][frequency] Catches data from
                                                     // data*
     Multi_array<complex_d, 2, uint32_t> fs;         // 			[thread_num][frequency] Catches DFT of data
-    Multi_array<complex_d, 3, uint32_t> hs;         // [n_prod]	[thread_num][frequency]
+    Multi_array<complex_d, 3, uint32_t> hs;         // [n_ks]	[thread_num][frequency]
     Histogram2D_periodic<BinType, double> Hs;       // [n_hist][period][nofbins][nofbins]
 
     void checks();
@@ -110,7 +111,7 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<double
     void destroy_plans();
 
     void prepare_kernels(np_double &ks);
-    void execution_checks(np_double &ks, py::array_t<DataType, py::array::c_style> &data);
+    void execution_checks(np_double &ks, py::array_t<DataType, py::array::c_style> &data,uint i_exp);
 };
 
 
@@ -119,12 +120,12 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<float,
   public:
     // Contructor
     TimeQuadSync_FFT_to_Hist2D(np_double ks, py::array_t<DataType, py::array::c_style> data, float dt,
-                               uint l_fft, uint nofbins, uint period, double max, int n_threads);
+                               uint l_fft, uint nofbins, uint period, double max, int n_threads,uint n_exp=1);
     // Destructor
     ~TimeQuadSync_FFT_to_Hist2D();
 
-    void execute(Multi_array<DataType, 1, uint64_t> &data);
-    void execute_py(np_double &ks, py::array_t<DataType, py::array::c_style> &data);
+    void execute(Multi_array<DataType, 1, uint64_t> &data, uint i_exp);
+    void execute_py(np_double &ks, py::array_t<DataType, py::array::c_style> &data, uint i_exp);
 
     static py::array_t<double> abscisse_py(double max, uint nofbins);
 
@@ -133,13 +134,13 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<float,
     void reset();
 
     // Utilities
-    uint compute_n_prod(np_double &ks);
+    uint compute_n_ks(np_double &ks);
     std::vector<ssize_t> get_shape(np_double &ks);
     uint compute_l_kernels(np_double &ks);
     uint64_t compute_l_data(py::array_t<DataType, py::array::c_style> &data);
     uint64_t compute_l_valid(uint l_kernel, uint64_t l_data) { return l_data - l_kernel + 1; };
     uint64_t compute_l_full(uint l_kernel, uint64_t l_data) { return l_kernel + l_data - 1; };
-    Multi_array<float, 2, uint32_t> copy_ks(np_double &np_ks, uint n_prod);
+    Multi_array<float, 2, uint32_t> copy_ks(np_double &np_ks, uint n_ks);
 
     uint compute_l_chunk(uint l_kernel, uint l_fft) { return l_fft - l_kernel + 1; };
     uint compute_n_chunks(uint64_t l_data, uint l_chunk) { return l_data / l_chunk; };
@@ -147,8 +148,9 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<float,
     uint compute_l_qs(uint l_kernel, uint n_chunks) { return (n_chunks + 1) * (l_kernel - 1); };
 
   private:
-    uint n_prod;
-    uint n_hist;
+    uint n_ks;      // number of kernels
+    uint n_exp;     // number of different experiments
+    uint n_hist;    // number of histograms in each experiments
     std::vector<ssize_t> ks_shape;
     uint l_kernel;
     uint64_t l_data; //
@@ -175,11 +177,11 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<float,
     fftwf_plan h_plan;
 
     // Pointers to all the complex kernels
-    Multi_array<complex_f, 2, uint32_t> ks_complex; // [n_prod][frequency]
+    Multi_array<complex_f, 2, uint32_t> ks_complex; // [n_ks][frequency]
     Multi_array<float, 2, uint32_t> gs;            // 			[thread_num][frequency] Catches data from
                                                     // data*
     Multi_array<complex_f, 2, uint32_t> fs;         // 			[thread_num][frequency] Catches DFT of data
-    Multi_array<complex_f, 3, uint32_t> hs;         // [n_prod]	[thread_num][frequency]
+    Multi_array<complex_f, 3, uint32_t> hs;         // [n_ks]	[thread_num][frequency]
     
 	// Using double precision histogram to keep precision after the convolution
     // product !!! The histograms are computed using : (data + max) / (bin_width))
@@ -197,7 +199,7 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<float,
     void destroy_plans();
 
     void prepare_kernels(np_double &ks);
-    void execution_checks(np_double &ks, py::array_t<DataType, py::array::c_style> &data);
+    void execution_checks(np_double &ks, py::array_t<DataType, py::array::c_style> &data, uint i_exp);
 };
 
 #include "TimeQuadSync_FFT_double_to_Hist2D.tpp"
