@@ -52,7 +52,7 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<double
     static py::array_t<double> abscisse_py(double max, uint nofbins);
 
     // Returns only the valid part of the convolution
-    py::array_t<BinType, py::array::c_style> get_Histograms_py(); // Data are copied
+    py::array_t<BinType, py::array::c_style> get_Histograms_py(const std::string& memory_transfert ="copy"); // Data are copied
     void reset();
 
     // Utilities
@@ -130,7 +130,7 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<float,
     static py::array_t<double> abscisse_py(double max, uint nofbins);
 
     // Returns only the valid part of the convolution
-    py::array_t<BinType, py::array::c_style> get_Histograms_py(); // Data are copied
+    py::array_t<BinType, py::array::c_style> get_Histograms_py(const std::string& memory_transfert ="copy"); // Data are copied
     void reset();
 
     // Utilities

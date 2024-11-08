@@ -156,7 +156,7 @@ const char *s_TQStoH2D = "\t Synchronized version of TimeQuad_FFTtoHist2D. "
         .def(py::init<np_double, np_int16, double, uint, uint, uint, double, int,uint>(), "ks"_a.noconvert(),           \
              "data"_a.noconvert(), "dt"_a.noconvert(), "l_fft"_a.noconvert(), "nb_of_bins"_a.noconvert(), "period"_a.noconvert(),    \
              "max"_a.noconvert(), "n_threads"_a.noconvert(),"n_exp"_a=1)                                                 \
-        .def("Histograms", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::get_Histograms_py)         \
+        .def("Histograms", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::get_Histograms_py,"memory_transfert"_a.noconvert() ="copy")         \
         .def("reset", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::reset)                          \
         .def("execute", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::execute_py, \
                 "ks"_a.noconvert(), "data"_a.noconvert(),"i_exp"_a = 0 )                  \

@@ -279,29 +279,27 @@ template <class BinType, class DataType> void TimeQuadSync_FFT_to_Hist2D<float, 
 
 template <class BinType, class DataType>
 py::array_t<BinType, py::array::c_style>
-TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::get_Histograms_py() {
-	std::vector<ssize_t> shape(ks_shape.begin(),ks_shape.end()-2); // ks.shape == (...,2,l_kernel)
+TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::get_Histograms_py(const std::string& memory_transfert) {
+	std::vector<ssize_t> shape(ks_shape.begin(),ks_shape.end()-2);
     if ( n_exp > 1 ) {
         shape.insert(shape.begin(), n_exp);  // Insert n_exp at the beginning
     }
-	shape.push_back(uint(period)); 
+    shape.push_back(uint(period)); 
     shape.push_back(uint(nofbins));
     shape.push_back(uint(nofbins));
 	
-    py::array_t<BinType> np_histogram = Hs.share_py().reshape(shape);;
-    py::buffer_info buffer = np_histogram.request();
-	
-    BinType *ptr = (BinType *)buffer.ptr;
-    size_t num_bytes = buffer.shape[0] * buffer.strides[0];
-    BinType *new_array = (BinType *)malloc(num_bytes);
-    memcpy((void *)new_array, (void *)ptr, num_bytes);
-    py::capsule capsule(new_array, free);
-
-    return py::array_t<BinType, py::array::c_style>(buffer.shape,  	// shape
-                                                    buffer.strides,   	// C-style contiguous strides
-                                                    new_array, 	// the data pointer
-                                                    capsule    	// numpy array references this parent
-    );
+    // py::array_t<BinType> np_histogram = Hs.share_py().reshape(shape); 
+    Multi_array<BinType, 4> histograms = Hs.get_histograms(); 
+        
+    if (memory_transfert == "copy") {
+        return histograms.copy_py().reshape(shape); 
+    } 
+    else if (memory_transfert == "share") {
+        return histograms.share_py().reshape(shape); 
+    }
+    else {
+        throw std::invalid_argument("Invalid memory_transfert option. Use 'copy' or 'share'.");
+    }
 }
 
 template <class BinType, class DataType>
