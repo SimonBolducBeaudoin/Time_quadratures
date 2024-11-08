@@ -210,7 +210,7 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execute(
                 float *data_1 = ((float *)hs(this_thread, j)) + l_invalid;
                 float *data_2 = ((float *)hs(this_thread, j + 1)) + l_invalid;
                 uint start = (i * l_chunk + l_invalid) % period ; // referenced at the start of data
-				Hs.accumulate(data_1, data_2, l_fft - 2 * l_invalid, i_exp+j/2, start,this_thread);
+				Hs.accumulate(data_1, data_2, l_fft - 2 * l_invalid, i_exp*n_hist+j/2, start,this_thread);
 			//  Hs.accumulate( x (most local index)    , y     , ... );
             }
 			
@@ -252,7 +252,7 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execute(
                     float *data_1 = (float *)hs(this_thread, j);
                     float *data_2 = (float *)hs(this_thread, j + 1);
                     uint start = (n_chunks * l_chunk) % period ;
-					Hs.accumulate(data_1, data_2, l_reste, i_exp+j/2, start, this_thread);
+					Hs.accumulate(data_1, data_2, l_reste, i_exp*n_hist+j/2, start, this_thread);
                 }
             }
         }
@@ -263,7 +263,7 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execute(
             for (uint j = 0; j < n_ks; j += 2) {
                 float *data_1 = quads(j) + i * l_invalid;
                 float *data_2 = quads(j + 1) + i * l_invalid;
-                Hs.accumulate(data_1, data_2, l_invalid, i_exp+j/2, start, this_thread);
+                Hs.accumulate(data_1, data_2, l_invalid, i_exp*n_hist+j/2, start, this_thread);
             }
         }
     }
