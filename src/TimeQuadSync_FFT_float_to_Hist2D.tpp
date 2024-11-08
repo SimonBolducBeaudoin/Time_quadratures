@@ -268,7 +268,7 @@ void TimeQuadSync_FFT_to_Hist2D<float, BinType, DataType>::execute(
         }
     }
     for (uint j = 0; j < n_ks; j += 2) {
-        Hs.reduction(i_exp+j/2);
+        Hs.reduction(i_exp*n_hist+j/2);
     }
 }
 
