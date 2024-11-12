@@ -68,6 +68,16 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<double
     uint compute_n_chunks(uint64_t l_data, uint l_chunk) { return l_data / l_chunk; };
     uint compute_l_reste(uint64_t l_data, uint l_chunk) { return l_data % l_chunk; };
     uint compute_l_qs(uint l_kernel, uint n_chunks) { return (n_chunks + 1) * (l_kernel - 1); };
+    
+    uint64_t get_heap_size() {
+        return Hs.get_heap_size() 
+             + ks.get_heap_size() 
+             + quads.get_heap_size() 
+             + ks_complex.get_heap_size() 
+             + gs.get_heap_size() 
+             + fs.get_heap_size() 
+             + hs.get_heap_size();
+    };
 
   private:
     uint n_ks;      // number of kernels
@@ -146,7 +156,17 @@ template <class BinType, class DataType> class TimeQuadSync_FFT_to_Hist2D<float,
     uint compute_n_chunks(uint64_t l_data, uint l_chunk) { return l_data / l_chunk; };
     uint compute_l_reste(uint64_t l_data, uint l_chunk) { return l_data % l_chunk; };
     uint compute_l_qs(uint l_kernel, uint n_chunks) { return (n_chunks + 1) * (l_kernel - 1); };
-
+    
+    uint64_t get_heap_size() {
+        return Hs.get_heap_size() 
+             + ks.get_heap_size() 
+             + quads.get_heap_size() 
+             + ks_complex.get_heap_size() 
+             + gs.get_heap_size() 
+             + fs.get_heap_size() 
+             + hs.get_heap_size();
+    };  
+    
   private:
     uint n_ks;      // number of kernels
     uint n_exp;     // number of different experiments

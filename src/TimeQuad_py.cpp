@@ -160,6 +160,7 @@ const char *s_TQStoH2D = "\t Synchronized version of TimeQuad_FFTtoHist2D. "
         .def("reset", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::reset)                          \
         .def("execute", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::execute_py, \
                 "ks"_a.noconvert(), "data"_a.noconvert(),"i_exp"_a = 0 )                  \
+        .def("get_heap_size", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::get_heap_size) \
         .def_static("abscisse", &TimeQuadSync_FFT_to_Hist2D<FloatType, BinType, DataType>::abscisse_py,          \
                     "max"_a.noconvert(), "nofbins"_a.noconvert());
 
